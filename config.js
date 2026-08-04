@@ -12,7 +12,7 @@ const CONFIG = {
                čokoľvek iné => iframe na adrese `url` (napr. pixel streaming)
      Prepojenie je definované výhradne tu, nie v kóde.
      Prázdne `agentId` aj `url` => zobrazí sa vizuálna náhrada (ukážkový režim). */
-  avatarA: { engine: 'anam', gender: 'female', agentId: '', url: '' },  // TODO: ženský widget (agent-id)
+  avatarA: { engine: 'anam', gender: 'female', agentId: 'efdf52f2-b01b-475f-b503-3ddf5b6dfe57', url: '' },
   avatarB: { engine: 'anam', gender: 'male',   agentId: '5584933e-43bc-428c-9d9b-015922821e71', url: '' },
 
   /* --- Widget anam.ai -------------------------------------------------
