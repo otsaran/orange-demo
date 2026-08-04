@@ -76,7 +76,10 @@ const CONFIG = {
     intervalMs: 5000,
     timeoutMs: 3000,
     failuresToOffline: 2,     // dva neúspechy za sebou => offline
-    iframeLoadTimeoutMs: 15000
+    iframeLoadTimeoutMs: 15000,
+    /* Kým sa relácia dvíha, nejde o výpadok – kiosk ukáže len krúžok, a to
+       až po tomto odklade. Keď avatar nabehne skôr, neblikne vôbec.       */
+    loaderDelayMs: 400
   },
 
   /* --- Kiosky z ponuky (3D) -------------------------------------------

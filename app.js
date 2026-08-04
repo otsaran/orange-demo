@@ -213,7 +213,9 @@ const anamWidget = (() => {
     mounting = true;
     unmount();
     host.classList.add('is-on');
-    net.setIframeOk(false);
+    /* Nie `setIframeOk(false)`: dovtedy nič nezlyhalo, len sa čaká. Výpadok
+       vyhlási až watchdog nižšie alebo udalosť `error` widgetu. */
+    net.setConnecting(true);
     watchdog = setTimeout(() => net.iframeTimedOut(), CONFIG.heartbeat.iframeLoadTimeoutMs);
 
     try { await loadScript(); }
@@ -226,6 +228,7 @@ const anamWidget = (() => {
 
     n.addEventListener('anam-agent:session-started', () => {
       clearTimeout(watchdog);
+      net.setConnecting(false);
       net.setSessionLive(true);
       net.setIframeOk(true);
     });
@@ -257,6 +260,7 @@ const anamWidget = (() => {
     node = null;
     host.replaceChildren();
     host.classList.remove('is-on');
+    net.setConnecting(false);
     net.setSessionLive(false);
   }
 
@@ -302,16 +306,17 @@ function loadAvatar(cfg) {
     avatarStub.hidden = true;
     avatarFrame.classList.add('is-on');
     avatarFrame.src = cfg.url;
-    net.setIframeOk(false);
+    net.setConnecting(true);              // načítava sa, nie je to výpadok
     iframeWatchdog = setTimeout(() => net.iframeTimedOut(), CONFIG.heartbeat.iframeLoadTimeoutMs);
   } else {                                // ukážkový režim – bez zdroja
     avatarStub.hidden = false;
+    net.setConnecting(false);
     net.setIframeOk(true);
   }
   renderDevStats();
 }
 
-avatarFrame.addEventListener('load', () => { clearTimeout(iframeWatchdog); net.setIframeOk(true); });
+avatarFrame.addEventListener('load', () => { clearTimeout(iframeWatchdog); net.setConnecting(false); net.setIframeOk(true); });
 avatarFrame.addEventListener('error', () => { clearTimeout(iframeWatchdog); net.iframeTimedOut(); });
 
 /* Obnovenie po výpadku. V pokoji sa nesmie spustiť nič – inak by sa avatar
@@ -1042,6 +1047,7 @@ const net = (() => {
   const overlay = $('#offlineOverlay');
   const title   = $('#offlineTitle');
   const text    = $('#offlineText');
+  const loader  = $('#avatarLoader');
 
   const TEXTS = {
     technical: { t: 'Žiadne pripojenie k internetu', p: 'Skontrolujte pripojenie k internetu.' },
@@ -1050,6 +1056,10 @@ const net = (() => {
 
   let fails = 0, online = true, forced = false, iframeOk = true, lastOk = null, timer = null;
   let hbActive = false, sessionLive = false;
+  /* `connecting` = relácia sa práve dvíha. Nie je to výpadok, hoci navonok
+     vyzerá rovnako (stream ešte nebeží), preto má vlastné prekrytie.
+     `loaderShown` ho zobrazí až po odklade – rýchle pripojenie neblikne. */
+  let connecting = false, loaderShown = false, loaderTimer = null;
 
   function probeUrl() {
     if (CONFIG.heartbeat.url) return CONFIG.heartbeat.url;
@@ -1063,19 +1073,46 @@ const net = (() => {
 
   /* Živá relácia avatara je lepší dôkaz spojenia než sonda: keď beží WebRTC
      stream, heartbeat ani zlyhanie sondy prekrytie nezapnú. Bez relácie
-     (IDLE, iframe, ukážkový režim) sa rozhoduje po starom.                 */
+     (IDLE, iframe, ukážkový režim) sa rozhoduje po starom.
+
+     Dvíhanie relácie sa za výpadok nepovažuje: kým `connecting` trvá, hlási
+     sa len točiaci sa krúžok. Za výpadok ho vyhlási až watchdog widgetu
+     (`iframeLoadTimeoutMs`) alebo jeho udalosť `error` – obe `connecting`
+     zhasnú. Vynútený výpadok z dev-panelu je silnejší, ten platí vždy.    */
   function render() {
-    const bad = forced || (!sessionLive && (!online || !iframeOk));
+    const bad = forced || (!sessionLive && !connecting && (!online || !iframeOk));
     const cfg = TEXTS[CONFIG.offlineMode] || TEXTS.technical;
     title.textContent = cfg.t;
     text.textContent  = cfg.p;
+
+    loader.hidden = !(connecting && !bad && loaderShown);
+
     if (bad === !overlay.hidden) { renderDevStats(); return; }
     overlay.hidden = !bad;
     /* Jeden reload po obnove spojenia – ale nikdy nie vtedy, keď prekrytie
-       zmizlo práve preto, že relácia nabehla: reštartovali by sme ju hneď
-       po štarte a avatar by sa točil dokola. */
-    if (!bad && !sessionLive) reloadAvatarOnce();
+       zmizlo práve preto, že relácia nabehla (alebo sa práve dvíha):
+       reštartovali by sme ju hneď po štarte a avatar by sa točil dokola. */
+    if (!bad && !sessionLive && !connecting) reloadAvatarOnce();
     renderDevStats();
+  }
+
+  /* Krúžok sa nezapína hneď: keď relácia nabehne do `loaderDelayMs`,
+     návštevník neuvidí nič a prechod je plynulý. */
+  function setConnecting(v) {
+    if (connecting === v) return;
+    connecting = v;
+    clearTimeout(loaderTimer);
+    if (v) {
+      loaderShown = false;
+      loaderTimer = setTimeout(() => {
+        if (!connecting) return;
+        loaderShown = true;
+        render();
+      }, CONFIG.heartbeat.loaderDelayMs);
+    } else {
+      loaderShown = false;
+    }
+    render();
   }
 
   async function beat() {
@@ -1108,11 +1145,13 @@ const net = (() => {
     force(v) { forced = v; render(); },
     isForced: () => forced,
     setIframeOk(v) { if (iframeOk !== v) { iframeOk = v; render(); } },
-    iframeTimedOut() { iframeOk = false; render(); },
+    iframeTimedOut() { connecting = false; clearTimeout(loaderTimer); loaderShown = false; iframeOk = false; render(); },
+    setConnecting,
+    isConnecting: () => connecting,
     setSessionLive(v) { if (sessionLive !== v) { sessionLive = v; render(); } },
     status: () => ({
-      ok: !(forced || (!sessionLive && (!online || !iframeOk))),
-      lastOk, forced, hbActive, sessionLive, iframeOk,
+      ok: !(forced || (!sessionLive && !connecting && (!online || !iframeOk))),
+      lastOk, forced, hbActive, sessionLive, iframeOk, connecting,
       probe: online, probeUrl: probeUrl(),
       onLine: navigator.onLine
     })
@@ -1151,7 +1190,9 @@ function renderDevStats() {
     ['Stav',        state],
     ['Pohlavie',    current.gender || '—'],
     ['Avatar',      current.engine ? current.engine + (anamWidget.isOn() ? ' · vložený' : '') : '—'],
-    ['Relácia',     `<span class="${s.sessionLive ? 'st-on' : 'st-off'}">${s.sessionLive ? 'beží' : (anamWidget.lastError() || '—')}</span>`],
+    ['Relácia',     s.connecting
+                      ? '<span class="st-wait">dvíha sa…</span>'
+                      : `<span class="${s.sessionLive ? 'st-on' : 'st-off'}">${s.sessionLive ? 'beží' : (anamWidget.lastError() || '—')}</span>`],
     ['Spojenie',    `<span class="${s.ok ? 'st-on' : 'st-off'}">${s.ok ? 'online' : 'offline'}</span>`],
     ['Sonda',       `<span class="${s.probe ? 'st-on' : 'st-off'}">${s.probe ? 'ok' : 'zlyháva'}</span>` +
                     (s.lastOk ? ' · ' + s.lastOk.toLocaleTimeString('sk-SK') : '')],
