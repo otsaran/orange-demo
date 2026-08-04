@@ -37,15 +37,23 @@ const CONFIG = {
       'ui-transcript':  'false',
       'ui-captions':    'false',
       'ui-mute-button': 'false',
-      'ui-text-input':  'false'
+      'ui-text-input':  'true'      // pole je skryté štýlom, slúži mostu nižšie
     },
-    textBridge: false,
+    textBridge: true,
     ask: {
       mobile:   'Povedz mi o paušáloch.',
       phones:   'Povedz mi o stojanoch, ktoré máme v ponuke.',
       tv:       'Povedz mi o televíznych balíkoch.',
       internet: 'Povedz mi o internetových programoch.'
-    }
+    },
+
+    /* Čo sa avatara opýta tlačidlo „Vybrať“ na karte ponuky. Fakty mu
+       dodávame z tohto konfigu, aby si nič nedomýšľal; ceny má návštevník
+       na obrazovke, preto ich nemá čítať nahlas.
+       Zástupné znaky: {name} {headline} {sub} {note}                      */
+    askPlan: 'Návštevník si práve na obrazovke vybral {name} ({headline}). {note} ' +
+             'Povedz mu v dvoch vetách, pre koho je vhodný, a spýtaj sa, čo ďalej. ' +
+             'Ceny nečítaj, má ich pred sebou.'
   },
 
   /* --- Správanie ----------------------------------------------------- */

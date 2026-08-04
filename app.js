@@ -180,7 +180,11 @@ const anamWidget = (() => {
     'border-radius:0!important;box-shadow:none!important}' +
     /* vlastný krížik widgetu ukončí reláciu a nechá prázdnu zónu –
        na kiosku má reláciu ukončiť len naše tlačidlo „Ukončiť“ */
-    '.anam-close-btn{display:none!important}';
+    '.anam-close-btn{display:none!important}' +
+    /* Textové pole widgetu je zapnuté kvôli mostu (ask nižšie), ale na
+       kiosku sa píše prstom po vlastných tlačidlách – preto ho skryjeme.
+       Skryté pole aj tlačidlo odoslania prijímajú udalosti ďalej.       */
+    '.anam-control-bar{display:none!important}';
 
   /* Widget čaká na vlastné tlačidlo „call to action“. Na kiosku ho stlačíme
      sami – voľba pohlavia je používateľské gesto, mikrofón sa teda smie pýtať. */
@@ -822,11 +826,26 @@ const plans = (() => {
     return c;
   }
 
+  /* Otázka pre avatara zo šablóny v konfigurácii. Fakty berieme z karty,
+     nie z hlavy modelu – tá si ich inak vymyslí.                        */
+  function planQuestion(p) {
+    const tpl = CONFIG.anam.askPlan;
+    if (!tpl) return '';
+    return tpl
+      .replace('{name}',     p.name || '')
+      .replace('{headline}', [p.headline, p.sub].filter(Boolean).join(', '))
+      .replace('{sub}',      p.sub || '')
+      .replace('{note}',     p.note || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function select(p, node) {
     picked = p.id;
     $$('.plan', strip).forEach(n => n.classList.toggle('is-picked', n === node));
     subtitles.say(`${p.name} za ${p.price} ${p.unit || '€/mes.'} Skontrolujem, či je na Vašej adrese dostupná.`);
     node.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    anamWidget.ask(planQuestion(p));      // ticho, ak avatar nebeží
   }
 
   function open(key) {
