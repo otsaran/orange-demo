@@ -1,0 +1,387 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тотем 1</title>
+<script src="./vendor/three.min.js"></script>
+
+<!--
+  ТОТЕМ 1
+
+  Структура:
+    totem-1.html
+    assets/screen.jpg   — картинка на экране стойки
+    assets/totem1-photo.jpg    — фото по кнопке PHOTO
+
+  Пути меняются в константах SCREEN_SRC и PHOTO_SRC в начале скрипта.
+  Тотемы 2 и 3 лягут рядом: totem-2.html + assets/totem2-*.jpg и т.д.
+-->
+
+<style>
+  :root{
+    --bg:#141414;
+    --card:#1c1c1c;
+    --stage:#0d0d0d;
+    --line:#333333;
+    --line-soft:#2a2a2a;
+    --ink:#ffffff;
+    --muted:#8b8b8b;
+    --orange:#ff7900;
+    --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:transparent;color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+
+  /* Vložené do kiosku: bez vlastnej karty, model cez celú šírku,
+     ovládanie pod ním. Rozmery sú kioskové (pohľad z 1,5 m). */
+  .widget{
+    width:100%;height:100%;
+    display:flex;flex-direction:column;gap:24px;
+  }
+
+  /* --- сцена --- */
+  .stage{
+    flex:1;min-height:0;
+    background:var(--stage);border:0;border-radius:16px;
+    position:relative;overflow:hidden;
+  }
+  canvas{display:block;width:100%;height:100%;opacity:0;transition:opacity .8s ease;touch-action:none;cursor:grab}
+  canvas.ready{opacity:1}
+  canvas.dragging{cursor:grabbing}
+
+  .hint{
+    position:absolute;left:0;right:0;bottom:24px;text-align:center;
+    font-size:24px;letter-spacing:.01em;color:var(--muted);
+    transition:opacity .45s ease;pointer-events:none;
+  }
+  .hint.gone{opacity:0}
+
+  /* --- фото поверх модели --- */
+  .photo{
+    position:absolute;inset:0;background:#ffffff;
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s;
+  }
+  .photo.on{opacity:1;visibility:visible}
+  .photo img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  .photo .missing{color:#8b8b8b;font-size:22px}
+
+  /* --- ovládanie pod modelom, tvar prevzatý z .btn-soft kiosku --- */
+  .rail{
+    flex:none;display:flex;flex-direction:row;gap:22px;
+  }
+  .rail button{
+    flex:1;min-height:110px;
+    font-family:var(--sans);font-size:32px;font-weight:700;letter-spacing:-.015em;
+    color:var(--ink);background:#333333;border:2px solid #666666;border-radius:14px;
+    cursor:pointer;transition:background .16s,color .16s,border-color .16s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* text na oranžovej je čierny – pravidlo kontrastu Orange */
+  .rail button:active,
+  .rail button.on{background:var(--orange);border-color:var(--orange);color:#000000}
+  .rail button:focus-visible{outline:3px solid #ffffff;outline-offset:2px;box-shadow:0 0 0 2px #000000}
+
+  @media (max-width:640px){
+    .widget{gap:16px}
+    .hint{font-size:18px;bottom:16px}
+    .rail{gap:14px}
+    .rail button{min-height:84px;font-size:24px;border-radius:12px}
+  }
+  @media (prefers-reduced-motion:reduce){canvas{transition:none}}
+</style>
+
+<div class="widget">
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <div class="hint" id="hint">Otáčajte prstom</div>
+    <div class="photo" id="photo">
+      <img id="photoImg" alt="Product photo">
+      <div class="missing" id="photoMissing" hidden>assets/totem1-photo.jpg не найден</div>
+    </div>
+  </div>
+
+  <div class="rail">
+    <button id="bDims">Rozmery</button>
+    <button id="bReset">Pôvodný pohľad</button>
+    <button id="bPhoto">Fotografia</button>
+  </div>
+</div>
+
+<script>
+/* ================== ПУТИ К КАРТИНКАМ ================== */
+const SCREEN_SRC = './assets/screen.jpg';        // общий для всех тотемов
+const PHOTO_SRC  = './assets/totem1-photo.jpg';  // фото по кнопке Photo
+/* ====================================================== */
+
+const CV = document.getElementById('c');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const renderer = new THREE.WebGLRenderer({canvas:CV, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(28, 1, 1, 2000);
+
+/* ---------- студийное окружение ---------- */
+function studioEnv(){
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
+  const x = cv.getContext('2d');
+  const g = x.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(.42,'#9aa3b0');
+  g.addColorStop(.5,'#31363e'); g.addColorStop(1,'#0b0d10');
+  x.fillStyle = g; x.fillRect(0,0,1024,512);
+  x.filter = 'blur(22px)';
+  x.fillStyle = '#ffffff';
+  x.fillRect(90,40,300,120);
+  x.fillRect(660,30,220,90);
+  x.fillStyle = '#7f8794';
+  x.fillRect(380,300,300,80);
+  const t = new THREE.CanvasTexture(cv);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.encoding = THREE.sRGBEncoding;
+  const rt = new THREE.WebGLCubeRenderTarget(256);
+  rt.fromEquirectangularTexture(renderer, t);
+  return rt.texture;
+}
+scene.environment = studioEnv();
+
+/* ---------- свет ---------- */
+scene.add(new THREE.HemisphereLight(0xdfe6f0, 0x0a0c0f, .55));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(-120, 210, 150);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+const sc = key.shadow.camera;
+sc.near = 40; sc.far = 620; sc.left = -140; sc.right = 140; sc.top = 220; sc.bottom = -60;
+key.shadow.bias = -0.0012; key.shadow.radius = 3;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xbcd2f2, .85);
+rim.position.set(180, 130, -150); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xffffff, .3);
+fill.position.set(90, 40, 190); scene.add(fill);
+
+/* ---------- геометрия ---------- */
+function roundedRect(w,h,r){
+  const s = new THREE.Shape(), x = -w/2, y = -h/2;
+  s.moveTo(x+r, y);
+  s.lineTo(x+w-r, y);  s.quadraticCurveTo(x+w, y, x+w, y+r);
+  s.lineTo(x+w, y+h-r);s.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  s.lineTo(x+r, y+h);  s.quadraticCurveTo(x, y+h, x, y+h-r);
+  s.lineTo(x, y+r);    s.quadraticCurveTo(x, y, x+r, y);
+  return s;
+}
+function slab(w,h,r,depth,bevel){
+  const g = new THREE.ExtrudeGeometry(roundedRect(w,h,r), {
+    depth: depth - bevel*2, bevelEnabled: bevel > 0,
+    bevelSize: bevel, bevelThickness: bevel, bevelSegments: 4, curveSegments: 20
+  });
+  g.translate(0, 0, -(depth - bevel*2)/2);
+  return g;
+}
+
+// единица = 1 см
+const paint = new THREE.MeshStandardMaterial({color:0x15161a, roughness:.42, metalness:.55});
+const bezel = new THREE.MeshStandardMaterial({color:0x101114, roughness:.34, metalness:.6});
+
+const totem = new THREE.Group();
+
+const base = new THREE.Mesh(slab(46,34,3.2,1.3,.28), paint);
+base.rotation.x = -Math.PI/2; base.position.y = .65;
+base.castShadow = base.receiveShadow = true; totem.add(base);
+
+// стойка стоит позади панели и не заходит на экран
+const post = new THREE.Mesh(slab(16,6.6,.7,104,.22), paint);
+post.rotation.x = -Math.PI/2; post.position.set(0, 1.3 + 52, -3);
+post.castShadow = post.receiveShadow = true; totem.add(post);
+
+const head = new THREE.Mesh(slab(33,51,2.8,5.8,.5), bezel);
+head.position.set(0, 118.6, 3.2);
+head.castShadow = head.receiveShadow = true; totem.add(head);
+
+/* ---------- экран ---------- */
+function placeholderTexture(){
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 800;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#141414'; x.fillRect(0,0,512,800);
+  x.fillStyle = '#ff7900'; x.fillRect(64,120,96,4);
+  x.fillStyle = '#ffffff';
+  x.font = '700 46px Helvetica, Arial';
+  x.fillText('assets/', 64, 220);
+  x.fillStyle = 'rgba(255,255,255,.45)';
+  x.font = '400 26px Helvetica, Arial';
+  x.fillText('screen.jpg не найден', 64, 268);
+  const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+// вписывает картинку любого формата в экран без искажений (обрезает лишнее)
+function applyCover(tex, planeW, planeH){
+  const ta = tex.image.width / tex.image.height, pa = planeW / planeH;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  if(ta > pa){ const r = pa/ta; tex.repeat.set(r,1); tex.offset.set((1-r)/2, 0); }
+  else       { const r = ta/pa; tex.repeat.set(1,r); tex.offset.set(0, (1-r)/2); }
+}
+const SCREEN_W = 29.4, SCREEN_H = 46.6;
+
+const glassMat = new THREE.MeshStandardMaterial({
+  color:0x000000, roughness:.09, metalness:.15,
+  emissive:0xffffff, emissiveMap:placeholderTexture(), emissiveIntensity:1
+});
+new THREE.TextureLoader().load(
+  SCREEN_SRC,
+  t => { t.encoding = THREE.sRGBEncoding; applyCover(t, SCREEN_W, SCREEN_H);
+         glassMat.emissiveMap = t; glassMat.needsUpdate = true; },
+  undefined,
+  () => console.warn('Не найден ' + SCREEN_SRC + ' — показан placeholder')
+);
+const glass = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN_W, SCREEN_H), glassMat);
+glass.position.set(0, 118.6, 3.2 + 5.8/2 + .03);
+totem.add(glass);
+
+scene.add(totem);
+
+/* ---------- тень ---------- */
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(900,900), new THREE.ShadowMaterial({opacity:.55}));
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+
+/* ---------- размеры ---------- */
+function labelSprite(text){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const x = cv.getContext('2d');
+  x.font = '700 30px Helvetica, Arial';
+  x.fillStyle = '#ff7900'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 128, 34);
+  const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:t, transparent:true, depthTest:false}));
+  s.scale.set(26, 6.5, 1);
+  return s;
+}
+function lineBetween(pts){
+  const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p)));
+  return new THREE.Line(g, new THREE.LineBasicMaterial({color:0xff7900, transparent:true, opacity:.75, depthTest:false}));
+}
+const dims = new THREE.Group(); dims.visible = false;
+dims.add(lineBetween([[-32,0,0],[-32,144,0]]));
+dims.add(lineBetween([[-35,0,0],[-29,0,0]]));
+dims.add(lineBetween([[-35,144,0],[-29,144,0]]));
+const hLabel = labelSprite('1440 mm'); hLabel.position.set(-46, 72, 0); dims.add(hLabel);
+dims.add(lineBetween([[-23,-2,20],[23,-2,20]]));
+dims.add(lineBetween([[-23,-2,17],[-23,-2,23]]));
+dims.add(lineBetween([[23,-2,17],[23,-2,23]]));
+const wLabel = labelSprite('460 mm'); wLabel.position.set(0, -9, 20); dims.add(wLabel);
+totem.add(dims);
+
+/* ---------- камера ---------- */
+const TARGET = new THREE.Vector3(0, 74, 0);
+const PAN_X = 16;                     // сдвигает модель левее в кадре
+const START = {az:-0.42, polar:1.42, dist:340};
+let az = START.az, polar = START.polar, dist = START.dist;
+let goalAz = az, goalPolar = polar, goalDist = dist;
+let idleAt = 0, sweepT = 0;
+
+function place(){
+  camera.position.set(
+    TARGET.x + dist * Math.sin(polar) * Math.sin(az),
+    TARGET.y + dist * Math.cos(polar),
+    TARGET.z + dist * Math.sin(polar) * Math.cos(az)
+  );
+  camera.lookAt(TARGET);
+  camera.translateX(PAN_X);
+}
+
+let dragging = false, px = 0, py = 0;
+function touched(){
+  idleAt = performance.now();
+  document.getElementById('hint').classList.add('gone');
+}
+CV.addEventListener('pointerdown', e => {
+  dragging = true; px = e.clientX; py = e.clientY;
+  CV.setPointerCapture(e.pointerId); CV.classList.add('dragging');
+  touched();
+});
+CV.addEventListener('pointermove', e => {
+  if(!dragging) return;
+  goalAz   += (e.clientX - px) * 0.008;
+  goalPolar = Math.max(0.95, Math.min(1.62, goalPolar - (e.clientY - py) * 0.005));
+  px = e.clientX; py = e.clientY;
+  touched();
+});
+['pointerup','pointercancel'].forEach(ev =>
+  CV.addEventListener(ev, () => { dragging = false; CV.classList.remove('dragging'); touched(); }));
+CV.addEventListener('wheel', e => {
+  e.preventDefault();
+  goalDist = Math.max(200, Math.min(520, goalDist + e.deltaY * 0.5));
+  touched();
+}, {passive:false});
+
+/* ---------- кнопки ---------- */
+const bDims = document.getElementById('bDims');
+bDims.onclick = () => { dims.visible = !dims.visible; bDims.classList.toggle('on', dims.visible); };
+
+document.getElementById('bReset').onclick = () => {
+  goalAz = START.az; goalPolar = START.polar; goalDist = START.dist;
+  touched();
+};
+
+const bPhoto = document.getElementById('bPhoto');
+const photo = document.getElementById('photo');
+const photoImg = document.getElementById('photoImg');
+photoImg.onerror = () => {
+  photoImg.hidden = true;
+  document.getElementById('photoMissing').hidden = false;
+  photo.style.background = '#0d0d0d';
+};
+photoImg.src = PHOTO_SRC;
+bPhoto.onclick = () => {
+  const on = !photo.classList.contains('on');
+  photo.classList.toggle('on', on);
+  bPhoto.classList.toggle('on', on);
+};
+
+/* ---------- цикл ---------- */
+function resize(){
+  const w = CV.clientWidth, h = CV.clientHeight;
+  if(!w || !h) return;
+  const r = renderer.getPixelRatio();
+  if(CV.width !== Math.round(w*r) || CV.height !== Math.round(h*r)){
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+}
+let first = true;
+const clock = new THREE.Clock();
+idleAt = performance.now();
+
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), .05);
+  resize();
+
+  // спокойный автооблёт, когда стойку не трогают
+  const idle = performance.now() - idleAt > 5000;
+  if(idle && !reduced && !dragging){
+    sweepT += dt * 0.35;
+    goalAz = START.az + Math.sin(sweepT) * 0.6;
+  } else if(!idle){
+    sweepT = 0;
+  }
+
+  const k = 1 - Math.pow(0.0016, dt);
+  az    += (goalAz - az) * k;
+  polar += (goalPolar - polar) * k;
+  dist  += (goalDist - dist) * k;
+  place();
+
+  renderer.render(scene, camera);
+  if(first){ first = false; CV.classList.add('ready'); }
+}
+place(); frame();
+</script>
