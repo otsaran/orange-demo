@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+/* ==================================================================
+   Nastaví persóne systémový prompt, jazyk a úvodnú vetu.
+   Prompt sa edituje v scripts/persona-prompt.md, nie tu.
+
+   Spustenie:
+     ANAM_API_KEY=… node scripts/anam-persona.mjs --dry-run
+     ANAM_API_KEY=… node scripts/anam-persona.mjs
+
+   Nástroje sa tu neriešia – tie zakladá scripts/anam-tools.mjs.
+   ================================================================== */
+
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const API     = 'https://api.anam.ai/v1';
+const KEY     = process.env.ANAM_API_KEY;
+const PERSONA = process.env.ANAM_PERSONA_ID || '5584933e-43bc-428c-9d9b-015922821e71';
+const DRY     = process.argv.includes('--dry-run');
+
+/* Úvodná veta – prvé, čo návštevník počuje. Bez názvu operátora. */
+const GREETING =
+  'Dobrý deň, som digitálny prezentér Humion. Ukážem vám našu ponuku – ' +
+  'paušály, internet, televíziu aj naše stojany. S čím môžem pomôcť?';
+
+const LANGUAGE = 'sk';
+
+if (!KEY) {
+  console.error('Chýba ANAM_API_KEY. Spustenie: ANAM_API_KEY=… node scripts/anam-persona.mjs');
+  process.exit(1);
+}
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {
+    ...options,
+    headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }
+  });
+  const text = await res.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch (e) { body = text; }
+  if (!res.ok) throw new Error(`${options.method || 'GET'} ${path} → ${res.status} ${text.slice(0, 300)}`);
+  return body;
+}
+
+const trim = s => (s || '').replace(/\s+/g, ' ').trim();
+
+async function main() {
+  const prompt  = (await readFile(join(here, 'persona-prompt.md'), 'utf8')).trim();
+  const persona = await api(`/personas/${PERSONA}`);
+  const now = {
+    systemPrompt:   (persona.brain && persona.brain.systemPrompt) || '',
+    languageCode:   persona.languageCode || '',
+    initialMessage: persona.initialMessage || ''
+  };
+
+  const diff = [];
+  if (trim(now.systemPrompt) !== trim(prompt)) diff.push('systemPrompt');
+  if (now.languageCode !== LANGUAGE)           diff.push(`languageCode ${now.languageCode} → ${LANGUAGE}`);
+  if (trim(now.initialMessage) !== trim(GREETING)) diff.push('initialMessage');
+
+  console.log(`Persóna: ${persona.name || PERSONA}`);
+  console.log(`Prompt má ${prompt.length} znakov, úvodná veta ${GREETING.length}.`);
+
+  if (!diff.length) { console.log('Bez zmeny – všetko už sedí.'); return; }
+  console.log('Zmení sa: ' + diff.join(', '));
+
+  if (DRY) { console.log('Skúšobný beh – nič sa nezapísalo.'); return; }
+
+  await api(`/personas/${PERSONA}`, {
+    method: 'PUT',
+    body: JSON.stringify({ systemPrompt: prompt, languageCode: LANGUAGE, initialMessage: GREETING })
+  });
+  console.log('Zapísané.');
+}
+
+main().catch(err => { console.error('Zlyhalo:', err.message); process.exit(1); });
