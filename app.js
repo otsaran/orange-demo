@@ -65,44 +65,69 @@ const avatarLayer = $('#avatarLayer');
 const avatarFrame = $('#avatarFrame');
 const avatarStub  = $('#avatarStub');
 
-/* Zacyklená ukážka na IDLE: obrázok 5 s → video_m 20 s → obrázok 5 s →
-   video_w 20 s → dokola. Slúži len na to, aby v pokoji nemusel bežať
+/* Zacyklená ukážka na IDLE: obrázok 5 s → video_m 4× → obrázok 5 s →
+   video_w 4× → dokola. Slúži len na to, aby v pokoji nemusel bežať
    živý avatar. Mimo IDLE sa cyklus zastaví a vráti sa orb (tam bude
-   neskôr skutočný avatar). */
+   neskôr skutočný avatar).
+
+   Videá sa počítajú na prehratia, nie na sekundy. Pevné okno 20 000 ms
+   nevychádzalo na celé kolo – klip trvá 5,084 s, čiže 3,93 prehratia –
+   a štvrté kolo sa utínalo v 93 %, uprostred pohybu. Vyzeralo to ako
+   zaseknutý obraz. Štyri celé kolá trvajú takmer rovnako (20,3 s), ale
+   strih padne na miesto, kde prvý a posledný snímok sedia na seba.     */
 const stubMediaEls = $$('.stub-media', avatarStub);
 const STUB_CYCLE = [
-  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 5000  },
-  { el: stubMediaEls.find(m => m.dataset.media === 'video_m'),  ms: 20000 },
-  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 5000  },
-  { el: stubMediaEls.find(m => m.dataset.media === 'video_w'),  ms: 20000 },
+  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 5000 },
+  { el: stubMediaEls.find(m => m.dataset.media === 'video_m'),  plays: 4 },
+  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 5000 },
+  { el: stubMediaEls.find(m => m.dataset.media === 'video_w'),  plays: 4 },
 ];
-let stubTimer = null;
+let stubTimer = null, stubOn = false;
 
 function showStubStep(ix) {
   const step = STUB_CYCLE[ix];
+  clearTimeout(stubTimer);
+
   stubMediaEls.forEach(m => {
     const on = m === step.el;
     m.classList.toggle('is-on', on);
-    if (m.tagName === 'VIDEO' && !on) m.pause();
+    if (m.tagName === 'VIDEO' && !on) { m.onended = null; m.pause(); }
   });
-  if (step.el.tagName === 'VIDEO') {
-    step.el.currentTime = 0;
-    step.el.play().catch(() => {});
-  }
-  clearTimeout(stubTimer);
-  stubTimer = setTimeout(() => showStubStep((ix + 1) % STUB_CYCLE.length), step.ms);
+
+  const next = () => { if (stubOn) showStubStep((ix + 1) % STUB_CYCLE.length); };
+
+  if (step.el.tagName !== 'VIDEO') { stubTimer = setTimeout(next, step.ms); return; }
+
+  const v = step.el;
+  let left = step.plays;
+
+  /* Poistka: keby prehrávanie nezačalo alebo `ended` neprišlo (zablokované
+     prehrávanie, chyba dekódovania), cyklus nesmie zamrznúť na jednom klipe.
+     Meria sa od skutočnej dĺžky, ktorá je známa až po metadátach.          */
+  const arm = () => {
+    clearTimeout(stubTimer);
+    const one = (v.duration > 0 ? v.duration : 6) * 1000;
+    stubTimer = setTimeout(next, one * left * 1.5 + 3000);
+  };
+
+  v.onended = () => { if (--left > 0) { v.currentTime = 0; v.play().catch(next); arm(); } else next(); };
+  v.currentTime = 0;
+  v.play().catch(next);
+  arm();
 }
 
 function startStubCycle() {
-  if (stubTimer) return;                 // už beží
+  if (stubOn) return;                    // už beží
+  stubOn = true;
   showStubStep(0);
 }
 function stopStubCycle() {
+  stubOn = false;
   clearTimeout(stubTimer);
   stubTimer = null;
   stubMediaEls.forEach(m => {
     m.classList.remove('is-on');
-    if (m.tagName === 'VIDEO') m.pause();
+    if (m.tagName === 'VIDEO') { m.onended = null; m.pause(); }
   });
 }
 

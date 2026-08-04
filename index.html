@@ -38,8 +38,10 @@
         <div id="avatarStub" class="stub">
           <div class="stub-media-wrap">
             <img class="stub-media" data-media="bg" src="assets/bg.webp" alt="">
-            <video class="stub-media" data-media="video_m" src="assets/video_m.webm" muted loop playsinline preload="auto"></video>
-            <video class="stub-media" data-media="video_w" src="assets/video_w.webm" muted loop playsinline preload="auto"></video>
+            <!-- Bez `loop`: cyklus si prehratia počíta sám (`ended`), aby sa
+                 video nikdy neprerušilo v polovici pohybu. -->
+            <video class="stub-media" data-media="video_m" src="assets/video_m.webm" muted playsinline preload="auto"></video>
+            <video class="stub-media" data-media="video_w" src="assets/video_w.webm" muted playsinline preload="auto"></video>
           </div>
 
           <div class="orb">
