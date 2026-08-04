@@ -177,7 +177,10 @@ const anamWidget = (() => {
     '.anam-widget,.anam-sheet,.anam-video-region{' +
     'width:100%!important;height:100%!important;aspect-ratio:auto!important;' +
     'max-width:none!important;max-height:none!important;' +
-    'border-radius:0!important;box-shadow:none!important}';
+    'border-radius:0!important;box-shadow:none!important}' +
+    /* vlastný krížik widgetu ukončí reláciu a nechá prázdnu zónu –
+       na kiosku má reláciu ukončiť len naše tlačidlo „Ukončiť“ */
+    '.anam-close-btn{display:none!important}';
 
   /* Widget čaká na vlastné tlačidlo „call to action“. Na kiosku ho stlačíme
      sami – voľba pohlavia je používateľské gesto, mikrofón sa teda smie pýtať. */
