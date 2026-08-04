@@ -136,8 +136,19 @@ async function listTools() {
   return all;
 }
 
+/* API vracia kľúče v inom poradí, než sme ich poslali – porovnávame
+   preto zoradený tvar, inak by skript „upravoval“ nástroje donekonečna.
+   Poradie v poliach (napr. enum) ostáva, to je súčasť významu.          */
+function canon(v) {
+  if (Array.isArray(v)) return v.map(canon);
+  if (v && typeof v === 'object') {
+    return Object.keys(v).sort().reduce((o, k) => (o[k] = canon(v[k]), o), {});
+  }
+  return v;
+}
+
 function sameConfig(a = {}, b = {}) {
-  return JSON.stringify(a.parameters ?? {}) === JSON.stringify(b.parameters ?? {}) &&
+  return JSON.stringify(canon(a.parameters ?? {})) === JSON.stringify(canon(b.parameters ?? {})) &&
          (a.awaitResult ?? false) === (b.awaitResult ?? false) &&
          (a.toolTimeoutSeconds ?? 10) === (b.toolTimeoutSeconds ?? 10);
 }
@@ -146,9 +157,11 @@ async function main() {
   const persona = await api(`/personas/${PERSONA}`);
   console.log(`Persóna: ${persona.name || PERSONA}`);
 
-  /* toolIds sa v odpovedi volajú rôzne podľa verzie – vezmeme, čo je. */
-  const attached = persona.toolIds
-    || (Array.isArray(persona.tools) ? persona.tools.map(t => t.id || t) : []);
+  /* Persóna vracia `tools` ako objekty a id má v `_toolId`; do PUT ide
+     pole reťazcov. Berieme oba tvary, nech je jedno, čo API vráti.      */
+  const attached = (persona.toolIds || persona.tools || [])
+    .map(t => (typeof t === 'string' ? t : (t._toolId || t.id)))
+    .filter(Boolean);
 
   const existing = await listTools();
   const byName = new Map(existing.map(t => [t.name, t]));
@@ -186,7 +199,8 @@ async function main() {
   const changed = merged.length !== attached.length;
 
   if (DRY) {
-    console.log(`\nPersóna má teraz ${attached.length} nástrojov, po zmene by mala ${merged.length}.`);
+    const fresh = wanted.filter(id => id === '(nový)').length;
+    console.log(`\nPersóna má teraz ${attached.length} nástrojov, po zmene by mala ${merged.length + fresh}.`);
     console.log('Skúšobný beh – nič sa nezapísalo.');
     return;
   }
