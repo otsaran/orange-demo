@@ -151,7 +151,7 @@ function avatarConfigFor(gender) {
    pri odchode do IDLE odstráni – tým sa relácia ukončí a kiosk stíchne. */
 const anamWidget = (() => {
   const host = $('#avatarWidget');
-  let node = null, scriptP = null, watchdog = null;
+  let node = null, scriptP = null, watchdog = null, lastError = null;
 
   function loadScript() {
     if (scriptP) return scriptP;
@@ -214,11 +214,20 @@ const anamWidget = (() => {
     Object.entries(CONFIG.anam.attrs || {}).forEach(([k, v]) => n.setAttribute(k, String(v)));
 
     n.addEventListener('anam-agent:session-started', () => {
-      clearTimeout(watchdog); net.setIframeOk(true);
+      clearTimeout(watchdog);
+      net.setSessionLive(true);
+      net.setIframeOk(true);
+    });
+    n.addEventListener('anam-agent:session-ended', (e) => {
+      lastError = (e.detail && e.detail.reason) || 'session-ended';
+      net.setSessionLive(false);
     });
     n.addEventListener('anam-agent:error', (e) => {
-      console.warn('anam:', e.detail && e.detail.message);
-      clearTimeout(watchdog); net.iframeTimedOut();
+      lastError = (e.detail && (e.detail.message || e.detail.code)) || 'error';
+      console.warn('anam:', lastError);
+      clearTimeout(watchdog);
+      net.setSessionLive(false);
+      net.iframeTimedOut();
     });
     n.addEventListener('anam-agent:message-received', (e) => {
       const d = e.detail || {};
@@ -236,6 +245,7 @@ const anamWidget = (() => {
     node = null;
     host.replaceChildren();
     host.classList.remove('is-on');
+    net.setSessionLive(false);
   }
 
   /* Widget zatiaľ neponúka verejné `talk()`. Kým ho anam.ai nesprístupní,
@@ -255,7 +265,7 @@ const anamWidget = (() => {
     return true;
   }
 
-  return { mount, unmount, ask, isOn: () => !!node };
+  return { mount, unmount, ask, isOn: () => !!node, lastError: () => lastError };
 })();
 
 function loadAvatar(cfg) {
@@ -1006,7 +1016,7 @@ const net = (() => {
   };
 
   let fails = 0, online = true, forced = false, iframeOk = true, lastOk = null, timer = null;
-  let hbActive = false;
+  let hbActive = false, sessionLive = false;
 
   function probeUrl() {
     if (CONFIG.heartbeat.url) return CONFIG.heartbeat.url;
@@ -1018,8 +1028,11 @@ const net = (() => {
     return null;                              // bez URL beží len detekcia z prehliadača
   }
 
+  /* Živá relácia avatara je lepší dôkaz spojenia než sonda: keď beží WebRTC
+     stream, heartbeat ani zlyhanie sondy prekrytie nezapnú. Bez relácie
+     (IDLE, iframe, ukážkový režim) sa rozhoduje po starom.                 */
   function render() {
-    const bad = forced || !online || !iframeOk;
+    const bad = forced || (!sessionLive && (!online || !iframeOk));
     const cfg = TEXTS[CONFIG.offlineMode] || TEXTS.technical;
     title.textContent = cfg.t;
     text.textContent  = cfg.p;
@@ -1060,9 +1073,11 @@ const net = (() => {
     isForced: () => forced,
     setIframeOk(v) { if (iframeOk !== v) { iframeOk = v; render(); } },
     iframeTimedOut() { iframeOk = false; render(); },
+    setSessionLive(v) { if (sessionLive !== v) { sessionLive = v; render(); } },
     status: () => ({
-      ok: !(forced || !online || !iframeOk),
-      lastOk, forced, hbActive,
+      ok: !(forced || (!sessionLive && (!online || !iframeOk))),
+      lastOk, forced, hbActive, sessionLive, iframeOk,
+      probe: online, probeUrl: probeUrl(),
       onLine: navigator.onLine
     })
   };
@@ -1099,9 +1114,11 @@ function renderDevStats() {
   const rows = [
     ['Stav',        state],
     ['Pohlavie',    current.gender || '—'],
-    ['Avatar',      current.engine ? current.engine + (anamWidget.isOn() ? ' · relácia' : '') : '—'],
+    ['Avatar',      current.engine ? current.engine + (anamWidget.isOn() ? ' · vložený' : '') : '—'],
+    ['Relácia',     `<span class="${s.sessionLive ? 'st-on' : 'st-off'}">${s.sessionLive ? 'beží' : (anamWidget.lastError() || '—')}</span>`],
     ['Spojenie',    `<span class="${s.ok ? 'st-on' : 'st-off'}">${s.ok ? 'online' : 'offline'}</span>`],
-    ['Posl. kontrola', s.lastOk ? s.lastOk.toLocaleTimeString('sk-SK') : '—'],
+    ['Sonda',       `<span class="${s.probe ? 'st-on' : 'st-off'}">${s.probe ? 'ok' : 'zlyháva'}</span>` +
+                    (s.lastOk ? ' · ' + s.lastOk.toLocaleTimeString('sk-SK') : '')],
     ['Relácie',     stats.sessions],
     ['Leady',       stats.leads],
     ['Palec hore',  stats.up],
