@@ -465,7 +465,9 @@ const subtitles = (() => {
 })();
 
 const LINES = {
-  hello:    'Dobrý deň. Som digitálny asistent Orange. S čím Vám môžem pomôcť?',
+  /* Bez názvu operátora – rovnako ako prompt persóny. Túto vetu vidno len
+     tie sekundy, kým sa neozve avatar; potom ju prepíšu jeho titulky. */
+  hello:    'Dobrý deň. Som digitálny prezentér Humion. S čím Vám môžem pomôcť?',
   mobile:   'Ponúkame paušály s neobmedzeným volaním v rámci Slovenska. Vyberte si, koľko dát potrebujete.',
   phones:   'Ukážem Vám telefóny z našej ponuky. Model si môžete otočiť prstom.',
   tv:       'K Orange TV máte vyše 150 programov a archív sedem dní. Mám Vám ukázať balíky?',
