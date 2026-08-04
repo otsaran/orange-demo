@@ -375,9 +375,15 @@ body{
 /* obrazovky, ktoré prekrývajú avatar celou plochou */
 .screen[data-screen="GENDER_SELECT"],
 .screen[data-screen="LEAD_CAPTURE"],
-.screen[data-screen="SELLER"],
-.screen[data-screen="FEEDBACK"]{
+.screen[data-screen="SELLER"]{
   background:var(--bg);
+}
+
+/* FEEDBACK je okno, nie obrazovka: pod ním ostáva vidieť rozhovor,
+   preto len stmavenie – nie plná výplň. */
+.screen[data-screen="FEEDBACK"]{
+  background:rgba(0,0,0,.5);
+  display:grid;place-items:center;
 }
 
 .avatar-slot{position:absolute;pointer-events:none}
@@ -941,9 +947,35 @@ body{
 .screen[data-screen="SELLER"] .btn-wide{max-width:760px;margin-top:80px}
 
 /* ── FEEDBACK ─────────────────────────────────────────────────────── */
-.fb-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:110px}
+/* Priehľadné sklo – rovnaký postup ako dev-panel. Rozmazanie pozadia drží
+   text čitateľný aj cez pestrý záber avatara, ktorý pod oknom beží ďalej. */
+.fb-modal{
+  position:relative;
+  width:820px;
+  padding:80px 60px 72px;
+  background:rgba(20,20,20,.72);
+  backdrop-filter:blur(20px) saturate(120%);
+  -webkit-backdrop-filter:blur(20px) saturate(120%);
+  border:var(--bw) solid var(--line-2);
+  border-radius:var(--r-lg);
+  box-shadow:0 24px 60px rgba(0,0,0,.55);
+  text-align:center;
+  animation:fbPop 220ms var(--ease);
+}
+@keyframes fbPop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.fb-close{
+  position:absolute;top:16px;right:16px;
+  width:120px;height:120px;          /* kioskový cieľ dotyku, nie len ikona */
+  display:grid;place-items:center;
+  background:transparent;border:0;border-radius:var(--r-md);
+  color:var(--fg-dim);cursor:pointer;
+  transition:color 180ms var(--ease), background 180ms var(--ease);
+}
+.fb-close:active{background:var(--primary-bg);color:var(--primary-fg)}
+.fb-close[hidden]{display:none}
+.fb-grid{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:64px}
 .fb-btn{
-  width:400px;height:400px;
+  width:100%;height:280px;
   border:var(--bw) solid var(--line-2);border-radius:var(--r-lg);
   background:transparent;color:var(--fg);
   display:grid;place-items:center;cursor:pointer;

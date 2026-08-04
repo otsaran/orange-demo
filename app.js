@@ -346,14 +346,24 @@ function unloadAvatar() {
    ------------------------------------------------------------------ */
 let state = null;
 const onEnter = {};
+/* Obrazovka pod otvoreným hodnotením – kam vráti krížik. `null`, keď okno
+   nie je otvorené. Obrazovky sa skrývajú `visibility`, nie `display`, takže
+   spodná môže ostať aktívna a je cez sklo vidieť.                          */
+let fbUnder = null;
 
 function go(next) {
   if (state === next) return;
   const prev = state;
   state = next;
   stage.dataset.state = next;
-  screens.forEach(s => s.classList.toggle('is-active', s.dataset.screen === next));
-  placeAvatar(next);
+
+  /* Hodnotenie je okno nad rozhovorom: spodná obrazovka ostáva aktívna a
+     avatar sa nepresúva – dohovorí vetu, ktorú začal. */
+  const modal = next === 'FEEDBACK' && SESSION_STATES.includes(prev);
+  fbUnder = modal ? prev : null;
+  screens.forEach(s => s.classList.toggle('is-active',
+    s.dataset.screen === next || (modal && s.dataset.screen === prev)));
+  if (!modal) placeAvatar(next);
   if (next === 'IDLE') startStubCycle(); else stopStubCycle();
   setGenderVideos(next === 'GENDER_SELECT');
   resetIdleTimer();
@@ -1025,8 +1035,27 @@ onEnter.FEEDBACK = () => {
   $('.fb-ask').hidden = false;
   $('.fb-thanks').hidden = true;
   $$('.fb-btn').forEach(b => b.classList.remove('is-picked'));
-  mic.stop();
+  $('#fbClose').hidden = false;
+  /* Mikrofón sa nezastavuje: relácia pod oknom beží ďalej a krížik sa k nej
+     vráti. Utíchne až v IDLE, kde sa avatar aj odpojí. Keď okno výnimočne
+     nie je nad reláciou, platí staré správanie. */
+  if (!fbUnder) mic.stop();
 };
+
+/* Krížik – „nechcem hodnotiť“. Vracia presne tam, odkiaľ okno prišlo, a to
+   bez `go()`: to by znova spustilo `onEnter` spodnej obrazovky a napríklad
+   vitrína stojanov by preskočila späť na prvý model. */
+function closeFeedback() {
+  if (!fbUnder) { go('IDLE'); return; }
+  const back = fbUnder;
+  fbUnder = null;
+  state = back;
+  stage.dataset.state = back;
+  $('.screen[data-screen="FEEDBACK"]').classList.remove('is-active');
+  resetIdleTimer();
+}
+
+$('#fbClose').addEventListener('click', closeFeedback);
 
 $$('.fb-btn').forEach(b => b.addEventListener('click', () => {
   b.classList.add('is-picked');
@@ -1035,6 +1064,9 @@ $$('.fb-btn').forEach(b => b.addEventListener('click', () => {
   setTimeout(() => {
     $('.fb-ask').hidden = true;
     $('.fb-thanks').hidden = false;
+    /* Po hodnotení sa už zatvárať nedá – odchod do IDLE je na ceste a krížik
+       by vrátil do rozhovoru, ktorý by ho o chvíľu aj tak opustil. */
+    $('#fbClose').hidden = true;
     setTimeout(() => go('IDLE'), 1800);
   }, 300);
 }));
