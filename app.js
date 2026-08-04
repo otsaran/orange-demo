@@ -267,9 +267,13 @@ const anamWidget = (() => {
     const proto = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement : HTMLInputElement;
     Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(input, text);
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    const send = root.querySelector('.anam-ctl-send');
-    if (send) send.click();
-    else input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    /* Widget je na preacte a stav poľa sa prepíše až v ďalšom takte.
+       Odoslanie v tom istom takte ide s prázdnym poľom a ticho zlyhá. */
+    setTimeout(() => {
+      const send = root.querySelector('.anam-ctl-send');
+      if (send) send.click();
+      else input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    }, 120);
     return true;
   }
 
