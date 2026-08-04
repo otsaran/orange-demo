@@ -151,7 +151,7 @@ function avatarConfigFor(gender) {
    pri odchode do IDLE odstráni – tým sa relácia ukončí a kiosk stíchne. */
 const anamWidget = (() => {
   const host = $('#avatarWidget');
-  let node = null, scriptP = null, watchdog = null, lastError = null;
+  let node = null, scriptP = null, watchdog = null, lastError = null, mounting = false;
 
   function loadScript() {
     if (scriptP) return scriptP;
@@ -199,15 +199,19 @@ const anamWidget = (() => {
     })();
   }
 
+  /* Vloženie je jednorazové: každé ďalšie by zhodilo rozbehnutú reláciu
+     a začalo novú (a míňalo kredit). Súbežné volania sa zahodia. */
   async function mount(cfg) {
+    if (mounting) return;
+    mounting = true;
     unmount();
     host.classList.add('is-on');
     net.setIframeOk(false);
     watchdog = setTimeout(() => net.iframeTimedOut(), CONFIG.heartbeat.iframeLoadTimeoutMs);
 
     try { await loadScript(); }
-    catch (e) { clearTimeout(watchdog); net.iframeTimedOut(); return; }
-    if (!host.classList.contains('is-on')) return;      // medzitým sme odišli do IDLE
+    catch (e) { clearTimeout(watchdog); net.iframeTimedOut(); mounting = false; return; }
+    if (!host.classList.contains('is-on')) { mounting = false; return; }   // medzitým IDLE
 
     const n = document.createElement('anam-agent');
     n.setAttribute('agent-id', cfg.agentId);
@@ -237,6 +241,7 @@ const anamWidget = (() => {
 
     host.replaceChildren(n);
     node = n;
+    mounting = false;
     prepare(n);
   }
 
@@ -1038,7 +1043,10 @@ const net = (() => {
     text.textContent  = cfg.p;
     if (bad === !overlay.hidden) { renderDevStats(); return; }
     overlay.hidden = !bad;
-    if (!bad) reloadAvatarOnce();             // po obnove spojenia jeden reload, stav ostáva
+    /* Jeden reload po obnove spojenia – ale nikdy nie vtedy, keď prekrytie
+       zmizlo práve preto, že relácia nabehla: reštartovali by sme ju hneď
+       po štarte a avatar by sa točil dokola. */
+    if (!bad && !sessionLive) reloadAvatarOnce();
     renderDevStats();
   }
 
