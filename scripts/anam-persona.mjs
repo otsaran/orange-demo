@@ -26,6 +26,14 @@ const GREETING =
 
 const LANGUAGE = 'sk';
 
+/* Nastavenie hlasu podľa odporúčania Anamu pre živé retailové demo
+   (Hannah Tier, 5. 8. 2026). Patrí do `voiceGenerationOptions`, nie do
+   `directorNotes` – tie riadia hranie avatara a `content` medzi ich
+   štýlmi nie je. Rozsahy pre Cartesia sonic-3: speed 0,6–1,5,
+   emotion neutral | calm | angry | content | sad | scared.
+   Pozor: pri zmene `voiceId` sa tieto voľby na strane Anamu vynulujú. */
+const VOICE = { speed: 1.05, emotion: 'content' };
+
 if (!KEY) {
   console.error('Chýba ANAM_API_KEY. Spustenie: ANAM_API_KEY=… node scripts/anam-persona.mjs');
   process.exit(1);
@@ -53,13 +61,17 @@ async function main() {
   const now = {
     systemPrompt:   (persona.brain && persona.brain.systemPrompt) || '',
     languageCode:   persona.languageCode || '',
-    initialMessage: persona.initialMessage || ''
+    initialMessage: persona.initialMessage || '',
+    voice:          persona.voiceGenerationOptions || {}
   };
 
   const diff = [];
   if (trim(now.systemPrompt) !== trim(prompt)) diff.push('systemPrompt');
   if (now.languageCode !== LANGUAGE)           diff.push(`languageCode ${now.languageCode} → ${LANGUAGE}`);
   if (trim(now.initialMessage) !== trim(GREETING)) diff.push('initialMessage');
+  if (now.voice.speed !== VOICE.speed || now.voice.emotion !== VOICE.emotion) {
+    diff.push(`voiceGenerationOptions ${JSON.stringify(now.voice)} → ${JSON.stringify(VOICE)}`);
+  }
 
   console.log(`Persóna: ${persona.name || PERSONA}`);
   console.log(`Prompt má ${prompt.length} znakov, úvodná veta ${GREETING.length}.`);
@@ -71,7 +83,12 @@ async function main() {
 
   await api(`/personas/${PERSONA}`, {
     method: 'PUT',
-    body: JSON.stringify({ systemPrompt: prompt, languageCode: LANGUAGE, initialMessage: GREETING })
+    body: JSON.stringify({
+      systemPrompt: prompt,
+      languageCode: LANGUAGE,
+      initialMessage: GREETING,
+      voiceGenerationOptions: VOICE
+    })
   });
   console.log('Zapísané.');
 }
