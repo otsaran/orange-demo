@@ -539,7 +539,9 @@ body{
 .sub-text{
   font-size:46px;line-height:1.24;font-weight:500;letter-spacing:-.02em;
   color:var(--fg);
-  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  /* Pás má 230 px a riadok 57 px – zmestia sa štyri. Orezanie na troch
+     ukrajovalo štvrtý riadok naprázdno. */
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
 }
 .sub-text .cursor{
   display:inline-block;width:4px;height:44px;vertical-align:-6px;

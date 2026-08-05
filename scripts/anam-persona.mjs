@@ -19,10 +19,17 @@ const KEY     = process.env.ANAM_API_KEY;
 const PERSONA = process.env.ANAM_PERSONA_ID || '5584933e-43bc-428c-9d9b-015922821e71';
 const DRY     = process.argv.includes('--dry-run');
 
-/* Úvodná veta – prvé, čo návštevník počuje. Bez názvu operátora. */
-const GREETING =
-  'Dobrý deň, som digitálny prezentér Humion. Ukážem vám našu ponuku – ' +
-  'paušály, internet, televíziu aj naše stojany. S čím môžem pomôcť?';
+/* Úvodná veta – prvé, čo návštevník počuje. Bez názvu operátora.
+
+   Musí znieť doslova rovnako ako `LINES.hello` v app.js: kiosk ju vypíše do
+   titulkov hneď po výbere avatara a persóna ju o pár sekúnd povie nahlas.
+   Keby sa líšili, návštevník dostane dva rôzne pozdravy za sebou.
+
+   Krátka je zámerne. Dlhšia verzia s vymenovaním sekcií zaberala v titulkoch
+   presne štyri riadky, teda celý priestor bez rezervy – a sekcie má aj tak
+   pred sebou na dlaždiciach. Kratší pozdrav navyše skôr začne (odporúčanie
+   Anamu k latencii).                                                        */
+const GREETING = 'Dobrý deň. Som digitálny prezentér Humion. S čím Vám môžem pomôcť?';
 
 const LANGUAGE = 'sk';
 

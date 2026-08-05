@@ -494,6 +494,10 @@ const subtitles = (() => {
   function clear() { clearInterval(timer); box.replaceChildren(); full = ''; }
 
   function say(text) {
+    /* Tú istú vetu neprepisujeme odznova. Pozdrav vypíše kiosk hneď po výbere
+       avatara a o pár sekúnd ho persóna povie nahlas – bez tejto poistky by
+       sa text v titulkoch reštartoval a preblikol. */
+    if (text === full) return;
     clearInterval(timer);
     full = text; i = 0;
     const span = el('span');
@@ -509,8 +513,11 @@ const subtitles = (() => {
 })();
 
 const LINES = {
-  /* Bez názvu operátora – rovnako ako prompt persóny. Túto vetu vidno len
-     tie sekundy, kým sa neozve avatar; potom ju prepíšu jeho titulky. */
+  /* Bez názvu operátora – rovnako ako prompt persóny. Vidno ju hneď po výbere
+     avatara, kým sa relácia dvíha. Musí znieť DOSLOVA rovnako ako `GREETING`
+     v scripts/anam-persona.mjs, teda ako `initialMessage` persóny: potom ju
+     avatar len povie nahlas a titulky sa nezmenia. Dva rôzne texty tu boli
+     príčinou dvoch pozdravov za sebou.                                      */
   hello:    'Dobrý deň. Som digitálny prezentér Humion. S čím Vám môžem pomôcť?',
   mobile:   'Ponúkame paušály s neobmedzeným volaním v rámci Slovenska. Vyberte si, koľko dát potrebujete.',
   phones:   'Ukážem Vám telefóny z našej ponuky. Model si môžete otočiť prstom.',
