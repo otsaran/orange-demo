@@ -257,7 +257,11 @@ body{
   width:100%;height:100%;
   object-fit:cover;
   opacity:0;
-  transition:opacity 260ms linear;
+  /* Prelínačka medzi obrázkom a klipmi. Vrstvy ležia na sebe, takže stačí
+     priehľadnosť. `linear` zámerne: pri dvoch vrstvách s `ease` klesne
+     v polovici súčtová krycia sila a prechod cez stred zblikne.
+     Dĺžka musí sedieť so `STUB_FADE_MS` v app.js.                        */
+  transition:opacity 500ms linear;
 }
 .stub-media.is-on{opacity:1}
 

@@ -76,6 +76,9 @@ const avatarStub  = $('#avatarStub');
    zaseknutý obraz. Štyri celé kolá trvajú takmer rovnako (20,3 s), ale
    strih padne na miesto, kde prvý a posledný snímok sedia na seba.     */
 const stubMediaEls = $$('.stub-media', avatarStub);
+/* Dĺžka prelínačky. Musí sedieť s prechodom `.stub-media` v styles.css:
+   podľa nej sa odkladá pauza odchádzajúceho klipu.                      */
+const STUB_FADE_MS = 500;
 const STUB_CYCLE = [
   { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 2000 },
   { el: stubMediaEls.find(m => m.dataset.media === 'video_m'),  plays: 4 },
@@ -91,7 +94,16 @@ function showStubStep(ix) {
   stubMediaEls.forEach(m => {
     const on = m === step.el;
     m.classList.toggle('is-on', on);
-    if (m.tagName === 'VIDEO' && !on) { m.onended = null; m.pause(); }
+    if (m.tagName === 'VIDEO' && !on) {
+      m.onended = null;
+      /* Pauza až po prelínačke. Okamžitá zmrazí obraz v polovici prechodu –
+         divák vidí zaseknutý snímok, ktorý sa až potom rozplynie, a celé to
+         pôsobí ako strih, nie ako prelínanie.                              */
+      clearTimeout(m._fadeOut);
+      m._fadeOut = setTimeout(() => {
+        if (!m.classList.contains('is-on')) m.pause();
+      }, STUB_FADE_MS);
+    }
   });
 
   const next = () => { if (stubOn) showStubStep((ix + 1) % STUB_CYCLE.length); };
@@ -127,7 +139,9 @@ function stopStubCycle() {
   stubTimer = null;
   stubMediaEls.forEach(m => {
     m.classList.remove('is-on');
-    if (m.tagName === 'VIDEO') { m.onended = null; m.pause(); }
+    /* Odchod z IDLE nie je prelínačka – tu sa zastavuje hneď, aj odložená
+       pauza z prechodu. Ticho v pokoji je tvrdá podmienka.               */
+    if (m.tagName === 'VIDEO') { clearTimeout(m._fadeOut); m.onended = null; m.pause(); }
   });
 }
 
