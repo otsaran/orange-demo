@@ -52,14 +52,11 @@
         </div>
       </div>
 
-      <!-- Kým sa relácia dvíha, nejde o výpadok – preto vlastné, tiché
-           prekrytie. Prekrytie výpadku sa zapne až po `iframeLoadTimeoutMs`. -->
-      <div id="avatarLoader">
-        <div class="loader-card">
-          <div class="spinner" aria-hidden="true"></div>
-          <p id="avatarLoaderText">Spájam sa s asistentom…</p>
-        </div>
-      </div>
+      <!-- Kým sa relácia dvíha, nejde o výpadok – žiadne krúžky ani hlásenia.
+           Je tu len rozostrená predajňa (`assets/bg.webp`), tá istá, v ktorej
+           je nakrútený avatar: návštevník vidí prázdnu miestnosť, do ktorej
+           avatar vzápätí vojde. Výpadok hlási až `iframeLoadTimeoutMs`. -->
+      <div id="avatarLoader" aria-hidden="true"></div>
 
       <!-- Prekrytie pri výpadku spojenia (iframe pod ním ostáva načítaný) -->
       <div id="offlineOverlay" hidden>

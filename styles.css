@@ -341,13 +341,8 @@ body{
 #avatarLoader{
   position:absolute;inset:0;
   z-index:9;
-  display:grid;place-items:center;
-  padding:60px;
-  background:
-    radial-gradient(120% 90% at 50% 45%, rgba(255,121,0,.10), transparent 62%),
-    rgba(10,10,10,.82);
-  backdrop-filter:blur(26px) saturate(115%);
-  -webkit-backdrop-filter:blur(26px) saturate(115%);
+  overflow:hidden;
+  background:var(--well);
   opacity:0;visibility:hidden;
   transition:opacity 520ms var(--ease), visibility 0s linear 520ms;
 }
@@ -355,32 +350,19 @@ body{
   opacity:1;visibility:visible;
   transition:opacity 300ms var(--ease), visibility 0s;
 }
-.loader-card{
-  display:flex;flex-direction:column;align-items:center;gap:28px;
-  text-align:center;
-  filter:blur(.2px);            /* jemné zmäkčenie hrán, aby nič nerezalo */
+/* Rozostrenie ide na vlastnú vrstvu, nie na #avatarLoader: `filter` na prvku
+   by rozmazal aj všetko, čo doň neskôr pribudne. Presah -60 px drží mäkké
+   okraje mimo zóny – inak by po stranách presvital podklad.               */
+#avatarLoader::before{
+  content:'';
+  position:absolute;inset:-60px;
+  background:url('assets/bg.webp') center/cover no-repeat;
+  filter:blur(22px) saturate(105%) brightness(.82);
+  transform:scale(1.04);         /* schová okraje, ktoré rozostrenie zjemní */
 }
-.loader-card p{
-  font-size:36px;line-height:1.35;font-weight:400;
-  color:var(--fg-mute);
-  letter-spacing:.01em;
-  animation:loaderBreathe 2.6s var(--ease) infinite;
-}
-/* mäkký krúžok: nízky kontrast a rozptýlená žiara namiesto ostrého prstenca */
-.loader-card .spinner{
-  width:56px;height:56px;border-width:4px;
-  border-color:rgba(255,255,255,.10);
-  border-top-color:rgba(255,121,0,.75);
-  animation:spin 1400ms cubic-bezier(.5,.1,.5,.9) infinite;
-  box-shadow:0 0 26px 6px rgba(255,121,0,.10);
-}
-@keyframes loaderBreathe{0%,100%{opacity:.55}50%{opacity:.9}}
-
-/* v páse 16:9 ide karta o stupeň nižšie – rovnako ako pri výpadku */
-#avatarLayer.is-band #avatarLoader{padding:28px;backdrop-filter:blur(18px) saturate(115%)}
-#avatarLayer.is-band .loader-card{gap:16px}
-#avatarLayer.is-band .loader-card p{font-size:24px}
-#avatarLayer.is-band .loader-card .spinner{width:34px;height:34px;border-width:3px}
+/* Zóna avatara je vysoká, obrázok širokoúhly: bez tohto by sa v portréte
+   orezal na stred a z predajne by ostal kus steny. */
+#avatarLayer:not(.is-band) #avatarLoader::before{background-position:50% 62%}
 
 .spinner{
   width:28px;height:28px;border-radius:50%;

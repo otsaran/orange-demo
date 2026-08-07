@@ -96,9 +96,11 @@ const CONFIG = {
     timeoutMs: 3000,
     failuresToOffline: 2,     // dva neúspechy za sebou => offline
     iframeLoadTimeoutMs: 15000,
-    /* Kým sa relácia dvíha, nejde o výpadok – kiosk ukáže len krúžok, a to
-       až po tomto odklade. Keď avatar nabehne skôr, neblikne vôbec.       */
-    loaderDelayMs: 400
+    /* Kým sa relácia dvíha, kiosk ukáže rozostrenú predajňu. Bez odkladu:
+       odklad mal zmysel pri krúžku, ktorý nemal preblikávať, ale prázdna
+       miestnosť je to, čo tam má byť od prvej chvíle – s odkladom by na
+       jej mieste najprv černela diera.                                    */
+    loaderDelayMs: 0
   },
 
   /* --- Kiosky z ponuky (3D) -------------------------------------------
