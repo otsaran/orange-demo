@@ -90,8 +90,55 @@ async function api(path, options = {}) {
 
 const trim = s => (s || '').replace(/\s+/g, ' ').trim();
 
+/* --- Prehľad ponuky ------------------------------------------------
+   Nepíše sa ručne, ale sa poskladá z config.js. Ručne písaný by sa pri
+   prvej zmene cenníka rozišiel s tým, čo má návštevník na obrazovke, a
+   model by tvrdil jedno, kým karta ukazuje druhé.
+
+   Ceny sa zámerne vynechávajú: má ich na obrazovke a nahlas ich čítať
+   nemá. Sumy zliav v `note` idú s ním – tie sú súčasťou opisu ponuky.
+
+   Vkladá sa na miesto značky <!-- OFFER --> v persona-prompt.md.      */
+async function offerSection() {
+  const src = await readFile(join(here, '..', 'config.js'), 'utf8');
+  const body = src.slice(src.indexOf('{'), src.lastIndexOf('}') + 1);
+  const CONFIG = new Function('return (' + body + ')')();
+
+  const L = ['# THE OFFER', '',
+    'This is everything the kiosk shows right now. These are the only product',
+    'facts you have — answer and compare from this list, and never invent',
+    'anything beyond it. Prices are printed on the screen, so do not read them',
+    'out loud; talk about what each option gives instead.', ''];
+
+  const SECTION = { mobile: 'Mobile plans', internet: 'Home internet', tv: 'Television' };
+  for (const [key, label] of Object.entries(SECTION)) {
+    const g = CONFIG.plans && CONFIG.plans[key];
+    if (!g) continue;
+    L.push(`## ${label} — ${g.title}`, '');
+    for (const p of g.items) {
+      const bits = [p.headline, p.sub, p.note, (p.benefits || []).join('; '), p.commitment]
+        .map(trim).filter(Boolean);
+      L.push(`- ${p.name}${p.recommended ? ' (recommended on screen)' : ''}: ${bits.join(' · ')}`);
+    }
+    L.push('');
+  }
+
+  if (CONFIG.devices && CONFIG.devices.length) {
+    L.push('## Touchscreen stands', '');
+    for (const d of CONFIG.devices) L.push(`- ${d.name}: ${d.size}`);
+    L.push('');
+  }
+  return L.join('\n').trim();
+}
+
 async function main() {
-  const prompt  = (await readFile(join(here, 'persona-prompt.md'), 'utf8')).trim();
+  const raw    = (await readFile(join(here, 'persona-prompt.md'), 'utf8')).trim();
+  if (!raw.includes('<!-- OFFER -->')) {
+    console.error('V persona-prompt.md chýba značka <!-- OFFER --> – kam vložiť prehľad ponuky.');
+    process.exit(1);
+  }
+  const offer  = await offerSection();
+  const prompt = raw.replace('<!-- OFFER -->', offer);
   const persona = await api(`/personas/${PERSONA}`);
   const now = {
     systemPrompt:   (persona.brain && persona.brain.systemPrompt) || '',
