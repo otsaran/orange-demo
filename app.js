@@ -416,8 +416,10 @@ function resetIdleTimer() {
 /* ------------------------------------------------------------------
    6. IDLE – bez zvuku, len vizuál
    ------------------------------------------------------------------ */
+/* Bez názvu operátora – rovnaké pravidlo ako v prompte persóny a v logu.
+   Toto je najviditeľnejší text celého dema, číta ho každý okoloidúci. */
 const IDLE_MESSAGES = [
-  'Opýtajte sa ma na čokoľvek o službách Orange',
+  'Opýtajte sa ma na čokoľvek o našich službách',
   'Skontrolujem dostupnosť služieb na Vašej adrese',
   'Ukážem Vám zariadenia z ponuky'
 ];
@@ -521,7 +523,7 @@ const LINES = {
   hello:    'Dobrý deň. Som digitálny prezentér Humion. S čím Vám môžem pomôcť?',
   mobile:   'Ponúkame paušály s neobmedzeným volaním v rámci Slovenska. Vyberte si, koľko dát potrebujete.',
   phones:   'Ukážem Vám telefóny z našej ponuky. Model si môžete otočiť prstom.',
-  tv:       'K Orange TV máte vyše 150 programov a archív sedem dní. Mám Vám ukázať balíky?',
+  tv:       'K našej televízii máte vyše 150 programov a archív sedem dní. Mám Vám ukázať balíky?',
   internet: 'Optický internet máme do rýchlosti 1 Gb/s. Napíšte prosím adresu, overím dostupnosť.',
   seller:   'Na túto otázku Vám lepšie odpovie môj kolega. Zavolám Vám predajcu.',
   lead:     'Rád zariadim, aby sa Vám ozval náš predajca.'
