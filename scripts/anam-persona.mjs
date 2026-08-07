@@ -1,11 +1,29 @@
 #!/usr/bin/env node
 /* ==================================================================
-   Nastaví persóne systémový prompt, jazyk a úvodnú vetu.
+   Nastaví persóne systémový prompt a úvodnú vetu.
    Prompt sa edituje v scripts/persona-prompt.md, nie tu.
+
+   KTO ČO VLASTNÍ
+   Skript prepisuje výhradne to, čo v repozitári leží ako súbor:
+     systemPrompt    ← scripts/persona-prompt.md
+     initialMessage  ← konštanta GREETING nižšie; musí sedieť s
+                       `LINES.hello` v app.js, inak dostane návštevník
+                       dva rôzne pozdravy za sebou
+
+   Jazyk, hlas a jeho nastavenia patria kabinetu. Skript ich sám od seba
+   NEPREPISUJE – nech sa dajú ladiť na počúvanie bez toho, aby ich ďalší
+   beh vrátil späť. Poslať sa dajú len na výslovné želanie:
+
+     --language   pošle languageCode (LANGUAGE nižšie)
+     --voice      pošle voiceGenerationOptions (VOICE nižšie)
+
+   Rozdiel oproti kabinetu sa vypíše vždy, aj bez tých prepínačov – ale
+   ako správa, nie ako niečo, čo sa ide opraviť.
 
    Spustenie:
      ANAM_API_KEY=… node scripts/anam-persona.mjs --dry-run
      ANAM_API_KEY=… node scripts/anam-persona.mjs
+     ANAM_API_KEY=… node scripts/anam-persona.mjs --language --voice
 
    Nástroje sa tu neriešia – tie zakladá scripts/anam-tools.mjs.
    ================================================================== */
@@ -17,7 +35,9 @@ import { dirname, join } from 'node:path';
 const API     = 'https://api.anam.ai/v1';
 const KEY     = process.env.ANAM_API_KEY;
 const PERSONA = process.env.ANAM_PERSONA_ID || '5584933e-43bc-428c-9d9b-015922821e71';
-const DRY     = process.argv.includes('--dry-run');
+const DRY      = process.argv.includes('--dry-run');
+const PUSH_LANG  = process.argv.includes('--language');
+const PUSH_VOICE = process.argv.includes('--voice');
 
 /* Úvodná veta – prvé, čo návštevník počuje. Bez názvu operátora.
 
@@ -31,6 +51,10 @@ const DRY     = process.argv.includes('--dry-run');
    Anamu k latencii).                                                        */
 const GREETING = 'Dobrý deň. Som digitálny prezentér Humion. S čím Vám môžem pomôcť?';
 
+/* Východiskový jazyk rozpoznávania reči. Posiela sa len s `--language`:
+   na persóne sa skúšajú aj iné jazyky a beh skriptu ich nemá zhadzovať.
+   `languageCode` riadi IBA to, čo avatar počuje. Čím odpovedá, určuje
+   prompt; ako znie, určuje zvolený hlas. Tie tri sa musia zhodovať.     */
 const LANGUAGE = 'sk';
 
 /* Nastavenie hlasu podľa odporúčania Anamu pre živé retailové demo
@@ -38,7 +62,11 @@ const LANGUAGE = 'sk';
    `directorNotes` – tie riadia hranie avatara a `content` medzi ich
    štýlmi nie je. Rozsahy pre Cartesia sonic-3: speed 0,6–1,5,
    emotion neutral | calm | angry | content | sad | scared.
-   Pozor: pri zmene `voiceId` sa tieto voľby na strane Anamu vynulujú. */
+   Pozor: pri zmene `voiceId` sa tieto voľby na strane Anamu vynulujú.
+
+   Posiela sa len s `--voice`. Platí pre Cartesiu; hlasy ElevenLabs majú
+   iné polia (stability, similarityBoost, speed 0,7–1,2) a `emotion`
+   nepoznajú – preto sa to nesmie posielať naslepo každej persóne.       */
 const VOICE = { speed: 1.05, emotion: 'content' };
 
 if (!KEY) {
@@ -72,31 +100,34 @@ async function main() {
     voice:          persona.voiceGenerationOptions || {}
   };
 
-  const diff = [];
-  if (trim(now.systemPrompt) !== trim(prompt)) diff.push('systemPrompt');
-  if (now.languageCode !== LANGUAGE)           diff.push(`languageCode ${now.languageCode} → ${LANGUAGE}`);
-  if (trim(now.initialMessage) !== trim(GREETING)) diff.push('initialMessage');
-  if (now.voice.speed !== VOICE.speed || now.voice.emotion !== VOICE.emotion) {
-    diff.push(`voiceGenerationOptions ${JSON.stringify(now.voice)} → ${JSON.stringify(VOICE)}`);
-  }
-
   console.log(`Persóna: ${persona.name || PERSONA}`);
   console.log(`Prompt má ${prompt.length} znakov, úvodná veta ${GREETING.length}.`);
 
-  if (!diff.length) { console.log('Bez zmeny – všetko už sedí.'); return; }
+  /* Čo skript vlastní – to sa zapíše vždy. */
+  const body = {};
+  const diff = [];
+  if (trim(now.systemPrompt) !== trim(prompt)) { body.systemPrompt = prompt; diff.push('systemPrompt'); }
+  if (trim(now.initialMessage) !== trim(GREETING)) { body.initialMessage = GREETING; diff.push('initialMessage'); }
+
+  /* Čo patrí kabinetu – len sa hlási, zapíše sa na výslovné želanie. */
+  const notes = [];
+  if (now.languageCode !== LANGUAGE) {
+    if (PUSH_LANG) { body.languageCode = LANGUAGE; diff.push(`languageCode ${now.languageCode} → ${LANGUAGE}`); }
+    else notes.push(`languageCode je '${now.languageCode}', v skripte '${LANGUAGE}' – nechávam tak (--language prepíše)`);
+  }
+  if (now.voice.speed !== VOICE.speed || now.voice.emotion !== VOICE.emotion) {
+    if (PUSH_VOICE) { body.voiceGenerationOptions = VOICE; diff.push('voiceGenerationOptions'); }
+    else notes.push(`voiceGenerationOptions ${JSON.stringify(now.voice)}, v skripte ${JSON.stringify(VOICE)} – nechávam tak (--voice prepíše)`);
+  }
+
+  notes.forEach(n => console.log('  · ' + n));
+
+  if (!diff.length) { console.log('Bez zmeny – čo skript vlastní, už sedí.'); return; }
   console.log('Zmení sa: ' + diff.join(', '));
 
   if (DRY) { console.log('Skúšobný beh – nič sa nezapísalo.'); return; }
 
-  await api(`/personas/${PERSONA}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      systemPrompt: prompt,
-      languageCode: LANGUAGE,
-      initialMessage: GREETING,
-      voiceGenerationOptions: VOICE
-    })
-  });
+  await api(`/personas/${PERSONA}`, { method: 'PUT', body: JSON.stringify(body) });
   console.log('Zapísané.');
 }
 
