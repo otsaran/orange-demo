@@ -875,16 +875,20 @@ const plans = (() => {
     return c;
   }
 
-  /* Otázka pre avatara zo šablóny v konfigurácii. Fakty berieme z karty,
-     nie z hlavy modelu – tá si ich inak vymyslí.                        */
+  /* Fakty pre avatara zo šablóny v konfigurácii. Berieme ich z karty, nie
+     z hlavy modelu – tá si ich inak vymyslí. Posielame všetko, čo má
+     návštevník pred očami okrem ceny: predtým išli len tri polia z ôsmich
+     a model nemal o ponuke čo povedať.                                   */
   function planQuestion(p) {
     const tpl = CONFIG.anam.askPlan;
     if (!tpl) return '';
     return tpl
-      .replace('{name}',     p.name || '')
-      .replace('{headline}', [p.headline, p.sub].filter(Boolean).join(', '))
-      .replace('{sub}',      p.sub || '')
-      .replace('{note}',     p.note || '')
+      .replace('{name}',       p.name || '')
+      .replace('{headline}',   p.headline || '')
+      .replace('{sub}',        p.sub || '')
+      .replace('{note}',       p.note || '')
+      .replace('{benefits}',   (p.benefits || []).join(', '))
+      .replace('{commitment}', p.commitment || '')
       .replace(/\s+/g, ' ')
       .trim();
   }

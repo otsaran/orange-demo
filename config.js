@@ -40,20 +40,39 @@ const CONFIG = {
       'ui-text-input':  'true'      // pole je skryté štýlom, slúži mostu nižšie
     },
     textBridge: true,
+
+    /* Tieto vety idú do avatara kanálom pre repliku návštevníka – iný widget
+       zatiaľ neponúka. Preto začínajú značkou [KIOSK] a sú po anglicky: sú to
+       udalosti obrazovky, nie reč. Prompt má pravidlo, že sa kvôli nim nemá
+       prepínať jazyk.
+
+       Predtým tu boli slovenské vety („Povedz mi o paušáloch.“) a model ich
+       čítal ako návštevníka, ktorý prehovoril po slovensky – rozhovor vedený
+       po ukrajinsky sa pri každom dotyku obrazovky prepol späť do slovenčiny. */
     ask: {
-      mobile:   'Povedz mi o paušáloch.',
-      phones:   'Povedz mi o stojanoch, ktoré máme v ponuke.',
-      tv:       'Povedz mi o televíznych balíkoch.',
-      internet: 'Povedz mi o internetových programoch.'
+      mobile:   '[KIOSK] The visitor opened the mobile plans on screen. Introduce them in the language you are currently speaking.',
+      phones:   '[KIOSK] The visitor opened the showcase of touchscreen stands. Introduce them in the language you are currently speaking.',
+      tv:       '[KIOSK] The visitor opened the television packages on screen. Introduce them in the language you are currently speaking.',
+      internet: '[KIOSK] The visitor opened the home internet plans on screen. Introduce them in the language you are currently speaking.'
     },
 
-    /* Čo sa avatara opýta tlačidlo „Vybrať“ na karte ponuky. Fakty mu
-       dodávame z tohto konfigu, aby si nič nedomýšľal; ceny má návštevník
-       na obrazovke, preto ich nemá čítať nahlas.
-       Zástupné znaky: {name} {headline} {sub} {note}                      */
-    askPlan: 'Návštevník si práve na obrazovke vybral {name} ({headline}). {note} ' +
-             'Povedz mu v dvoch vetách, pre koho je vhodný, a spýtaj sa, čo ďalej. ' +
-             'Ceny nečítaj, má ich pred sebou.'
+    /* Čo dostane avatar, keď návštevník stlačí „Vybrať“ na karte ponuky.
+
+       Dávame FAKTY, nie scenár. Predchádzajúca verzia predpisovala tvar
+       odpovede („povedz v dvoch vetách a spýtaj sa, čo ďalej“), model ju
+       plnil doslova a znelo to ako naučený text. Zároveň išli do modelu len
+       tri polia z ôsmich, takže o karte nemal čo povedať.
+
+       Ceny zámerne neposielame: návštevník ich má na obrazovke a model si
+       ich nemá kde vymyslieť.
+
+       Zástupné znaky: {name} {headline} {sub} {note} {benefits} {commitment} */
+    askPlan: '[KIOSK] The visitor selected {name} on screen. ' +
+             'Headline: {headline}. Detail: {sub}. {note} ' +
+             'Included: {benefits}. {commitment}. ' +
+             'Talk about it in your own words, in the language you are currently speaking: ' +
+             'who it suits and why. The exact price is printed on the screen in front of ' +
+             'them, so do not read it out loud.'
   },
 
   /* --- Správanie ----------------------------------------------------- */
