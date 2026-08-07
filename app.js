@@ -65,7 +65,7 @@ const avatarLayer = $('#avatarLayer');
 const avatarFrame = $('#avatarFrame');
 const avatarStub  = $('#avatarStub');
 
-/* Zacyklená ukážka na IDLE: obrázok 5 s → video_m 4× → obrázok 5 s →
+/* Zacyklená ukážka na IDLE: obrázok 2 s → video_m 4× → obrázok 2 s →
    video_w 4× → dokola. Slúži len na to, aby v pokoji nemusel bežať
    živý avatar. Mimo IDLE sa cyklus zastaví a vráti sa orb (tam bude
    neskôr skutočný avatar).
@@ -77,9 +77,9 @@ const avatarStub  = $('#avatarStub');
    strih padne na miesto, kde prvý a posledný snímok sedia na seba.     */
 const stubMediaEls = $$('.stub-media', avatarStub);
 const STUB_CYCLE = [
-  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 5000 },
+  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 2000 },
   { el: stubMediaEls.find(m => m.dataset.media === 'video_m'),  plays: 4 },
-  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 5000 },
+  { el: stubMediaEls.find(m => m.dataset.media === 'bg'),       ms: 2000 },
   { el: stubMediaEls.find(m => m.dataset.media === 'video_w'),  plays: 4 },
 ];
 let stubTimer = null, stubOn = false;
