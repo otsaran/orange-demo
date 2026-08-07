@@ -271,6 +271,9 @@ const anamWidget = (() => {
     });
     n.addEventListener('anam-agent:message-received', (e) => {
       const d = e.detail || {};
+      /* Replika ktorejkoľvek strany je dôkaz, že rozhovor beží – aj keď sa
+         obrazovky nikto nedotkol. Do titulkov ide len to, čo povie avatar. */
+      noteConversationActivity();
       if (d.role && d.role !== 'user' && d.content) subtitles.say(d.content);
     });
     n.addEventListener('anam-agent:tool-call-started', onToolCall);
@@ -401,15 +404,27 @@ let idleTimer = null;
 const SESSION_STATES = ['CONVERSATION', 'DEVICE_3D', 'PLANS',
                         'COVERAGE_CHECK', 'LEAD_CAPTURE', 'SELLER'];
 
+/* Nečinnosť vracia rovno do IDLE. Hodnotenie sa pýta iba pri vedomom konci
+   rozhovoru – nástrojom `end_conversation` alebo tlačidlom „Ukončiť“. Predtým
+   ho otváral aj tento časovač, takže vyskočilo uprostred rozhovoru.
+
+   Časovač musí zostať: bez neho by opustený kiosk držal živú reláciu – zvuk
+   v prázdnej predajni, míňanie kreditu a ďalší návštevník by prišiel do cudzej
+   konverzácie.                                                              */
 function resetIdleTimer() {
   clearTimeout(idleTimer);
   if (state === 'IDLE') return;
   const ms = (state === 'FEEDBACK' ? (CONFIG.feedbackTimeoutSec || 15) : CONFIG.idleTimeoutSec) * 1000;
-  idleTimer = setTimeout(() => {
-    if (SESSION_STATES.includes(state)) go('FEEDBACK');
-    else go('IDLE');
-  }, ms);
+  idleTimer = setTimeout(() => go('IDLE'), ms);
 }
+
+/* Dotyk, klávesa, koliesko – a hovorená reč. Prehliadač o reči nevie, tá sa
+   pozná až podľa repliky z relácie; bez toho by rozhovor vedený výhradne
+   hlasom kiosk po 45 sekundách utnul, hoci návštevník práve rozprával.     */
+function noteConversationActivity() {
+  if (state !== 'FEEDBACK') resetIdleTimer();
+}
+
 ['pointerdown', 'keydown', 'wheel'].forEach(ev =>
   window.addEventListener(ev, resetIdleTimer, { passive: true })
 );
