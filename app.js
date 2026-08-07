@@ -253,6 +253,7 @@ const anamWidget = (() => {
 
     n.addEventListener('anam-agent:session-started', () => {
       clearTimeout(watchdog);
+      host.classList.add('is-live');        // video sa prelne z prekrytia
       net.setConnecting(false);
       net.setSessionLive(true);
       net.setIframeOk(true);
@@ -284,7 +285,7 @@ const anamWidget = (() => {
     clearTimeout(watchdog);
     node = null;
     host.replaceChildren();
-    host.classList.remove('is-on');
+    host.classList.remove('is-on', 'is-live');
     net.setConnecting(false);
     net.setSessionLive(false);
   }
@@ -515,12 +516,11 @@ const subtitles = (() => {
 })();
 
 const LINES = {
-  /* Bez názvu operátora – rovnako ako prompt persóny. Vidno ju hneď po výbere
-     avatara, kým sa relácia dvíha. Musí znieť DOSLOVA rovnako ako `GREETING`
-     v scripts/anam-persona.mjs, teda ako `initialMessage` persóny: potom ju
-     avatar len povie nahlas a titulky sa nezmenia. Dva rôzne texty tu boli
-     príčinou dvoch pozdravov za sebou.                                      */
-  hello:    'Dobrý deň. Som digitálny prezentér Humion. S čím Vám môžem pomôcť?',
+  /* Pozdrav tu už nie je. Vypisoval ho kiosk pri príchode do rozhovoru a musel
+     sa doslova zhodovať s `initialMessage` persóny – dva zdroje jedného textu,
+     ktoré sa rozišli a návštevník dostal dva pozdravy za sebou. Teraz ho píše
+     iba avatar, keď ho naozaj povie. Zdroj ostal jeden: GREETING v
+     scripts/anam-persona.mjs.                                               */
   mobile:   'Ponúkame paušály s neobmedzeným volaním v rámci Slovenska. Vyberte si, koľko dát potrebujete.',
   phones:   'Ukážem Vám telefóny z našej ponuky. Model si môžete otočiť prstom.',
   tv:       'K našej televízii máte vyše 150 programov a archív sedem dní. Mám Vám ukázať balíky?',
@@ -532,9 +532,12 @@ const LINES = {
 /* ------------------------------------------------------------------
    9. CONVERSATION
    ------------------------------------------------------------------ */
-onEnter.CONVERSATION = (prev) => {
+/* Titulky pri príchode zámerne needitujeme. Kiosk kedysi vypísal pozdrav hneď
+   po výbere avatara, ale relácia sa dvíha ešte niekoľko sekúnd – text tak
+   visel na obrazovke dávno predtým, než sa ozval hlas. Teraz píše titulky iba
+   samotný avatar (`message-received`), takže slovo a zvuk prídu spolu.      */
+onEnter.CONVERSATION = () => {
   mic.start();
-  if (prev === 'GENDER_SELECT') subtitles.say(LINES.hello);
 };
 
 /* Kam vedie ktorá dlaždica. Ak má kľúč blok v CONFIG.plans, otvorí sa karusel;
@@ -1155,7 +1158,7 @@ const net = (() => {
     title.textContent = cfg.t;
     text.textContent  = cfg.p;
 
-    loader.hidden = !(connecting && !bad && loaderShown);
+    loader.classList.toggle('is-on', connecting && !bad && loaderShown);
 
     if (bad === !overlay.hidden) { renderDevStats(); return; }
     overlay.hidden = !bad;

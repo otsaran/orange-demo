@@ -6,9 +6,8 @@
    KTO ČO VLASTNÍ
    Skript prepisuje výhradne to, čo v repozitári leží ako súbor:
      systemPrompt    ← scripts/persona-prompt.md
-     initialMessage  ← konštanta GREETING nižšie; musí sedieť s
-                       `LINES.hello` v app.js, inak dostane návštevník
-                       dva rôzne pozdravy za sebou
+     initialMessage  ← konštanta GREETING nižšie; jediný zdroj pozdravu,
+                       kiosk už vlastný nemá
 
    Jazyk, hlas a jeho nastavenia patria kabinetu. Skript ich sám od seba
    NEPREPISUJE – nech sa dajú ladiť na počúvanie bez toho, aby ich ďalší
@@ -39,11 +38,12 @@ const DRY      = process.argv.includes('--dry-run');
 const PUSH_LANG  = process.argv.includes('--language');
 const PUSH_VOICE = process.argv.includes('--voice');
 
-/* Úvodná veta – prvé, čo návštevník počuje. Bez názvu operátora.
+/* Úvodná veta – prvé, čo návštevník počuje aj uvidí. Bez názvu operátora.
 
-   Musí znieť doslova rovnako ako `LINES.hello` v app.js: kiosk ju vypíše do
-   titulkov hneď po výbere avatara a persóna ju o pár sekúnd povie nahlas.
-   Keby sa líšili, návštevník dostane dva rôzne pozdravy za sebou.
+   Jediný zdroj pozdravu. Kiosk mal kedysi vlastný v `LINES.hello` a vypisoval
+   ho do titulkov hneď po výbere avatara; texty sa rozišli a návštevník dostal
+   dva pozdravy za sebou. Teraz titulky píše iba avatar, keď vetu naozaj
+   povie – kým sa relácia dvíha, je pruh titulkov prázdny.
 
    Krátka je zámerne. Dlhšia verzia s vymenovaním sekcií zaberala v titulkoch
    presne štyri riadky, teda celý priestor bez rezervy – a sekcie má aj tak

@@ -228,8 +228,16 @@ body{
    zvonku mu dávame len rozmer zóny avatara. */
 /* z-index drží widget vo vlastnom kontexte – vnútri má 9999 a bez toho by
    sa dostal nad prekrytie výpadku spojenia. */
-#avatarWidget{position:absolute;inset:0;z-index:1;display:none;background:var(--well)}
+/* Vloží sa prázdny a priehľadný; viditeľným sa stane až keď beží stream
+   (`is-live` na `session-started`). Vďaka tomu sa video neobjaví skokom,
+   ale prelne sa s miznúcim prekrytím. `display` sa animovať nedá, preto
+   sú na to dve triedy.                                                  */
+#avatarWidget{
+  position:absolute;inset:0;z-index:1;display:none;background:var(--well);
+  opacity:0;transition:opacity 520ms var(--ease);
+}
 #avatarWidget.is-on{display:block}
+#avatarWidget.is-live{opacity:1}
 #avatarWidget anam-agent{display:block;width:100%;height:100%}
 
 /* Vizuálna náhrada avatara (ukážkový režim) */
@@ -324,26 +332,52 @@ body{
 
 /* ── Prekrytie počas dvíhania relácie ─────────────────────────────────
    Zámerne nenesie žiadnu správu o chybe: dovtedy sa nič nepokazilo.
-   Rovnaké pozadie ako prekrytie výpadku, aby prechod medzi nimi
-   neblikol. Nábeh je oneskorený (`loaderDelayMs`), pri rýchlom
-   pripojení teda neprebleskne vôbec.                                  */
+   Nábeh je oneskorený (`loaderDelayMs`), pri rýchlom pripojení teda
+   neprebleskne vôbec.
+
+   Odchod je plynulý: prekrytie sa nezhasína skokom, ale prelína sa do
+   videa avatara. Preto sa neprepína atribútom `hidden`, ale triedou –
+   `display:none` sa animovať nedá. Rovnaký postup ako pri obrazovkách. */
 #avatarLoader{
   position:absolute;inset:0;
   z-index:9;
   display:grid;place-items:center;
-  background:var(--bg);
   padding:60px;
-  animation:fadeIn 200ms var(--ease);
+  background:
+    radial-gradient(120% 90% at 50% 45%, rgba(255,121,0,.10), transparent 62%),
+    rgba(10,10,10,.82);
+  backdrop-filter:blur(26px) saturate(115%);
+  -webkit-backdrop-filter:blur(26px) saturate(115%);
+  opacity:0;visibility:hidden;
+  transition:opacity 520ms var(--ease), visibility 0s linear 520ms;
 }
-#avatarLoader[hidden]{display:none}
+#avatarLoader.is-on{
+  opacity:1;visibility:visible;
+  transition:opacity 300ms var(--ease), visibility 0s;
+}
 .loader-card{
   display:flex;flex-direction:column;align-items:center;gap:28px;
   text-align:center;
+  filter:blur(.2px);            /* jemné zmäkčenie hrán, aby nič nerezalo */
 }
-.loader-card p{font-size:36px;color:var(--fg-dim);line-height:1.35}
-.loader-card .spinner{width:56px;height:56px;border-width:5px}
+.loader-card p{
+  font-size:36px;line-height:1.35;font-weight:400;
+  color:var(--fg-mute);
+  letter-spacing:.01em;
+  animation:loaderBreathe 2.6s var(--ease) infinite;
+}
+/* mäkký krúžok: nízky kontrast a rozptýlená žiara namiesto ostrého prstenca */
+.loader-card .spinner{
+  width:56px;height:56px;border-width:4px;
+  border-color:rgba(255,255,255,.10);
+  border-top-color:rgba(255,121,0,.75);
+  animation:spin 1400ms cubic-bezier(.5,.1,.5,.9) infinite;
+  box-shadow:0 0 26px 6px rgba(255,121,0,.10);
+}
+@keyframes loaderBreathe{0%,100%{opacity:.55}50%{opacity:.9}}
+
 /* v páse 16:9 ide karta o stupeň nižšie – rovnako ako pri výpadku */
-#avatarLayer.is-band #avatarLoader{padding:28px}
+#avatarLayer.is-band #avatarLoader{padding:28px;backdrop-filter:blur(18px) saturate(115%)}
 #avatarLayer.is-band .loader-card{gap:16px}
 #avatarLayer.is-band .loader-card p{font-size:24px}
 #avatarLayer.is-band .loader-card .spinner{width:34px;height:34px;border-width:3px}
