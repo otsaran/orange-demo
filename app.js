@@ -1322,6 +1322,7 @@ function renderDevStats() {
    ------------------------------------------------------------------ */
 (function initLogo() {
   const box = $('#logo');
+  box.addEventListener('click', () => window.open('analytics.html', '_blank'));
   if (!CONFIG.logo || !CONFIG.logo.show) { box.style.display = 'none'; return; }
   if (CONFIG.logo.src) {
     const img = document.createElement('img');

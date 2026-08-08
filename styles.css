@@ -160,6 +160,7 @@ body{
 .logo{
   display:flex;align-items:center;
   color:var(--fg);
+  cursor:pointer;
 }
 .logo img{height:96px;width:auto;display:block}
 

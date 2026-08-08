@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Humion — Digital Assistant Analytics</title>
+<style>
+  :root{
+    --bg: #000000;
+    --card: #141414;
+    --card-border: #262422;
+    --orange: #ee8131;
+    --orange-2: #f5a05c;
+    --text: #f5f5f5;
+    --text-dim: #9a9aa0;
+    --text-dimmer: #6c6c72;
+    --green: #7ee787;
+    --radius: 0px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page{
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 24px 60px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding: 10px 4px 26px;
+    opacity:0;
+    animation: fadeDown .6s ease forwards;
+  }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .logo{
+    width:44px; height:44px;
+    background: var(--orange);
+    flex-shrink:0;
+  }
+  .brand h1{
+    font-size: 22px;
+    font-weight: 600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .brand h1 .dim{ color: var(--text-dim); font-weight: 500; }
+
+  .range-btn{
+    display:flex; align-items:center; gap:8px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 0;
+    font-size: 14px;
+    cursor:pointer;
+    transition: transform .15s ease, background .2s ease, border-color .2s ease;
+    white-space:nowrap;
+  }
+  .range-btn:hover{ background:#1b1b1e; border-color:#333; }
+  .range-btn:active{ transform: scale(0.96); }
+  .range-btn svg{ width:14px; height:14px; transition: transform .2s ease; }
+  .range-btn.open svg{ transform: rotate(180deg); }
+
+  /* ---------- Grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .grid.two{ grid-template-columns: 1.6fr 1fr; }
+  .grid.three{ grid-template-columns: repeat(3, 1fr); }
+
+  .card{
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 22px 22px 20px;
+    position: relative;
+    overflow:hidden;
+    opacity:0;
+    transform: translateY(14px);
+    animation: riseIn .55s cubic-bezier(.2,.8,.2,1) forwards;
+    transition: border-color .25s ease, transform .2s ease, box-shadow .25s ease;
+  }
+  .card:hover{
+    border-color:#2c2c30;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .card.pressable{ cursor:pointer; }
+  .card.pressable:active{ transform: scale(0.985); }
+
+  .card h3{
+    margin:0 0 14px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  /* stagger */
+  .grid .card:nth-child(1){ animation-delay: .05s; }
+  .grid .card:nth-child(2){ animation-delay: .12s; }
+  .grid .card:nth-child(3){ animation-delay: .19s; }
+  .grid .card:nth-child(4){ animation-delay: .26s; }
+
+  /* ---------- Stat cards ---------- */
+  .stat-top{
+    display:flex; align-items:flex-start; justify-content:space-between;
+  }
+  .stat-value{
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--orange);
+    line-height:1;
+    margin: 6px 0 10px;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value.white{ color: var(--text); }
+  .stat-sub{
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .stat-sub.up{ color: var(--green); display:flex; align-items:center; gap:4px; }
+  .stat-icon{
+    width:44px; height:44px;
+    border-radius: 0;
+    border: 1.5px solid var(--orange);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    color: var(--orange);
+  }
+  .stat-icon svg{ width:22px; height:22px; }
+
+  /* ---------- Sessions per day (area chart) ---------- */
+  .chart-wrap{ width:100%; }
+  .chart-wrap svg{ width:100%; height:auto; display:block; overflow:visible; }
+  .area-path{
+    stroke-dasharray: 1400;
+    stroke-dashoffset: 1400;
+    animation: draw 1.4s ease forwards .4s;
+  }
+  .area-fill{
+    opacity:0;
+    animation: fadeIn .8s ease forwards 1.1s;
+  }
+  .chart-dot{
+    opacity:0;
+    animation: popIn .4s ease forwards;
+    cursor:pointer;
+  }
+  .chart-dot:hover{ r:6; }
+  .day-labels{
+    display:flex; justify-content:space-between;
+    margin-top:10px;
+    font-size:12px; color: var(--text-dim);
+  }
+
+  /* ---------- Bar chart (Most Popular Sections) ---------- */
+  .bar-row{
+    display:grid;
+    grid-template-columns: 70px 1fr 34px;
+    align-items:center;
+    gap:12px;
+    margin-bottom: 16px;
+    cursor:pointer;
+  }
+  .bar-row:last-child{ margin-bottom:0; }
+  .bar-label{ font-size: 14px; color: var(--text); text-align:right; }
+  .bar-track{
+    background: #1c1c1f;
+    border-radius: 0;
+    height: 26px;
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    border-radius: 0;
+    background: linear-gradient(90deg, var(--orange), var(--orange-2));
+    width:0;
+    transition: filter .2s ease;
+    animation: growBar 1s cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  .bar-row:hover .bar-fill{ filter: brightness(1.15); }
+  .bar-value{ font-size:14px; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Donut charts ---------- */
+  .donut-row{
+    display:flex; align-items:center; justify-content:center; gap: 26px;
+    padding-top: 4px;
+  }
+  .donut-wrap{ position:relative; width:150px; height:150px; flex-shrink:0; }
+  .donut-wrap svg{ width:100%; height:100%; transform: rotate(-90deg); }
+  .donut-seg{
+    fill:none;
+    stroke-width: 22;
+    stroke-dasharray: 0 999;
+    animation: none;
+  }
+  .donut-center{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 22px;
+  }
+  .legend-side{ font-size:14px; color: var(--text-dim); line-height:1.4; }
+  .legend-side b{ display:block; color: var(--text); font-size:16px; font-weight:600; }
+  .legend-side.orange b{ color: var(--orange); }
+
+  .feedback-card .donut-row{ flex-direction:column; gap:6px; }
+  .feedback-legend{
+    display:flex; justify-content:space-between; width:100%; max-width:230px;
+    font-size:13px; color: var(--text-dim); margin-top: -4px;
+  }
+  .feedback-legend .val{ display:block; color: var(--text); font-weight:600; font-size:15px; margin-top:2px; }
+  .feedback-count{ text-align:center; font-size:12px; color: var(--text-dimmer); margin-top:10px; }
+
+  /* ---------- Funnel ---------- */
+  .funnel{ display:flex; flex-direction:column; align-items:center; gap:0; padding-top:6px; }
+  .funnel-step{
+    color:#1a1a1a;
+    font-weight:600;
+    font-size:13px;
+    text-align:center;
+    border-radius:0;
+    padding:10px 12px;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    cursor:pointer;
+    transform: scaleX(0);
+    transform-origin:center;
+    animation: expandX .5s cubic-bezier(.2,.8,.2,1) forwards;
+    transition: filter .2s ease;
+  }
+  .funnel-step:hover{ filter: brightness(1.1); }
+  .funnel-step .n{ font-size:15px; }
+  .funnel-arrow{
+    color: var(--text-dimmer);
+    font-size:12px;
+    padding: 4px 0;
+    opacity:0;
+    animation: fadeIn .4s ease forwards;
+  }
+  .funnel-step:nth-child(1){ width: 100%; background: var(--orange); animation-delay:.15s; }
+  .funnel-step:nth-child(3){ width: 72%; background: #ff9345; animation-delay:.55s; }
+  .funnel-step:nth-child(5){ width: 46%; background: #ffb374; animation-delay:.95s; }
+  .funnel-step:nth-child(7){ width: 26%; background: #ffd2ac; animation-delay:1.35s; }
+  .funnel-arrow:nth-child(2){ animation-delay: .4s; }
+  .funnel-arrow:nth-child(4){ animation-delay: .8s; }
+  .funnel-arrow:nth-child(6){ animation-delay: 1.2s; }
+
+  /* ---------- Keyframes ---------- */
+  @keyframes fadeDown{ from{ opacity:0; transform: translateY(-10px);} to{ opacity:1; transform:none; } }
+  @keyframes riseIn{ to{ opacity:1; transform:none; } }
+  @keyframes fadeIn{ to{ opacity:1; } }
+  @keyframes popIn{ from{ opacity:0; transform: scale(0); } to{ opacity:1; transform: scale(1); } }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+  @keyframes growBar{ from{ width:0; } }
+  @keyframes expandX{ to{ transform: scaleX(1); } }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1000px){
+    .grid{ grid-template-columns: repeat(2,1fr); }
+    .grid.two{ grid-template-columns: 1fr; }
+    .grid.three{ grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px){
+    .page{ padding: 14px 14px 40px; }
+    header{ flex-wrap:wrap; gap:12px; padding-bottom:16px; }
+    .brand h1{ font-size:18px; }
+    .logo{ width:38px; height:38px; }
+    .grid{ grid-template-columns: repeat(2,1fr); gap:12px; }
+    .stat-value{ font-size:30px; }
+    .card{ padding:16px; }
+    .donut-wrap{ width:120px; height:120px; }
+    .bar-row{ grid-template-columns: 56px 1fr 28px; gap:8px; }
+    .bar-label{ font-size:12px; }
+    .bar-value{ font-size:12px; }
+  }
+  @media (max-width: 420px){
+    .grid{ grid-template-columns: 1fr 1fr; }
+    .stat-value{ font-size:26px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="brand">
+      <div class="logo"></div>
+      <h1>Humion <span class="dim">— Digital Assistant Analytics</span></h1>
+    </div>
+    <button class="range-btn" id="rangeBtn">
+      <span>Last 7 days</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </header>
+
+  <!-- Top stat cards -->
+  <div class="grid">
+    <div class="card pressable">
+      <h3>Total Sessions</h3>
+      <div class="stat-value" data-count="148">0</div>
+      <div class="stat-sub up">↗ +12% vs last week</div>
+    </div>
+
+    <div class="card pressable">
+      <div class="stat-top">
+        <div>
+          <h3>Avg. Conversation Time</h3>
+          <div class="stat-value white">2m 45s</div>
+        </div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card pressable">
+      <div class="stat-top">
+        <div>
+          <h3>Leads Captured</h3>
+          <div class="stat-value" data-count="34">0</div>
+        </div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5"/><path d="M14 9h6M14 13h6M14 17h4"/></svg>
+        </div>
+      </div>
+      <div class="stat-sub">23% of sessions</div>
+    </div>
+
+    <div class="card pressable">
+      <div class="stat-top">
+        <div>
+          <h3>Satisfaction Score</h3>
+          <div class="stat-value white" data-count="91" data-suffix="%">0</div>
+        </div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 11v9H4v-9h3Zm0 0 4-8 1 1v6h6l1 2-2 8H9l-2-2"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sessions per day + Most popular sections -->
+  <div class="grid two">
+    <div class="card">
+      <h3>Sessions per Day</h3>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 700 260" preserveAspectRatio="none">
+          <!-- gridlines -->
+          <line x1="0" y1="10" x2="700" y2="10" stroke="#232326" stroke-width="1"/>
+          <line x1="0" y1="90" x2="700" y2="90" stroke="#232326" stroke-width="1"/>
+          <line x1="0" y1="170" x2="700" y2="170" stroke="#232326" stroke-width="1"/>
+          <line x1="0" y1="230" x2="700" y2="230" stroke="#2c2c30" stroke-width="1.5"/>
+
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ff7a1a" stop-opacity="0.55"/>
+              <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <path class="area-fill" fill="url(#areaGrad)" d="M0,140 C40,150 60,120 100,102 C140,84 160,116 200,116 C240,116 260,54 300,54 C340,54 360,124 400,124 C440,124 460,68 500,68 C540,68 560,140 600,140 C640,140 660,150 700,150 L700,230 L0,230 Z"/>
+          <path class="area-path" fill="none" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round" d="M0,140 C40,150 60,120 100,102 C140,84 160,116 200,116 C240,116 260,54 300,54 C340,54 360,124 400,124 C440,124 460,68 500,68 C540,68 560,140 600,140 C640,140 660,150 700,150"/>
+
+          <g font-size="13" fill="#f4f4f5" text-anchor="middle" font-weight="600">
+            <circle class="chart-dot" cx="100" cy="102" r="4" fill="#ff7a1a" style="animation-delay:1.4s"/>
+            <text x="100" y="86" style="opacity:0;animation:fadeIn .3s forwards 1.4s">18</text>
+
+            <circle class="chart-dot" cx="200" cy="116" r="4" fill="#ff7a1a" style="animation-delay:1.5s"/>
+            <text x="200" y="100" style="opacity:0;animation:fadeIn .3s forwards 1.5s">22</text>
+
+            <circle class="chart-dot" cx="300" cy="54" r="4" fill="#ff7a1a" style="animation-delay:1.6s"/>
+            <text x="300" y="38" style="opacity:0;animation:fadeIn .3s forwards 1.6s">25</text>
+
+            <circle class="chart-dot" cx="400" cy="124" r="4" fill="#ff7a1a" style="animation-delay:1.7s"/>
+            <text x="400" y="108" style="opacity:0;animation:fadeIn .3s forwards 1.7s">19</text>
+
+            <circle class="chart-dot" cx="500" cy="68" r="4" fill="#ff7a1a" style="animation-delay:1.8s"/>
+            <text x="500" y="52" style="opacity:0;animation:fadeIn .3s forwards 1.8s">24</text>
+
+            <circle class="chart-dot" cx="600" cy="140" r="4" fill="#ff7a1a" style="animation-delay:1.9s"/>
+            <text x="600" y="124" style="opacity:0;animation:fadeIn .3s forwards 1.9s">21</text>
+
+            <circle class="chart-dot" cx="0" cy="140" r="0" fill="none"/>
+          </g>
+        </svg>
+      </div>
+      <div class="day-labels">
+        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Most Popular Sections</h3>
+      <div id="barChart">
+        <div class="bar-row" data-idx="0">
+          <div class="bar-label">Mobile</div>
+          <div class="bar-track"><div class="bar-fill" style="animation-delay:.3s" data-w="100"></div></div>
+          <div class="bar-value">52</div>
+        </div>
+        <div class="bar-row" data-idx="1">
+          <div class="bar-label">Devices</div>
+          <div class="bar-track"><div class="bar-fill" style="animation-delay:.42s" data-w="78"></div></div>
+          <div class="bar-value">41</div>
+        </div>
+        <div class="bar-row" data-idx="2">
+          <div class="bar-label">Internet</div>
+          <div class="bar-track"><div class="bar-fill" style="animation-delay:.54s" data-w="73"></div></div>
+          <div class="bar-value">38</div>
+        </div>
+        <div class="bar-row" data-idx="3">
+          <div class="bar-label">TV</div>
+          <div class="bar-track"><div class="bar-fill" style="animation-delay:.66s" data-w="55"></div></div>
+          <div class="bar-value">29</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avatar / Feedback / Funnel -->
+  <div class="grid three">
+    <div class="card">
+      <h3>Avatar Selection</h3>
+      <div class="donut-row">
+        <div class="legend-side"><b>58%</b>Female</div>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 150 150">
+            <circle cx="75" cy="75" r="60" fill="none" stroke="#3a3a3d" stroke-width="22"/>
+            <circle class="donut-seg" cx="75" cy="75" r="60" stroke="#ff7a1a" stroke-dasharray="0 377" style="animation: donut1 1.1s cubic-bezier(.2,.8,.2,1) forwards .3s;"/>
+          </svg>
+        </div>
+        <div class="legend-side orange"><b>42%</b>Male</div>
+      </div>
+    </div>
+
+    <div class="card feedback-card">
+      <h3>Feedback</h3>
+      <div class="donut-row">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 150 150">
+            <circle cx="75" cy="75" r="60" fill="none" stroke="#3a3a3d" stroke-width="22"/>
+            <circle class="donut-seg" cx="75" cy="75" r="60" stroke="#ff7a1a" stroke-dasharray="0 377" style="animation: donut2 1.1s cubic-bezier(.2,.8,.2,1) forwards .3s;"/>
+          </svg>
+          <div class="donut-center">👍</div>
+        </div>
+        <div class="feedback-legend">
+          <div>👎 thumbs-down<span class="val">9%</span></div>
+          <div style="text-align:right">👍 thumbs-up<span class="val">91%</span></div>
+        </div>
+      </div>
+      <div class="feedback-count">79 ratings</div>
+    </div>
+
+    <div class="card">
+      <h3>Conversion Funnel</h3>
+      <div class="funnel">
+        <div class="funnel-step" data-label="Idle" data-n="210">
+          <span>Idle</span><span class="n">210</span>
+        </div>
+        <div class="funnel-arrow">↓</div>
+        <div class="funnel-step" data-label="Avatar Selected" data-n="148">
+          <span>Avatar Selected</span><span class="n">148</span>
+        </div>
+        <div class="funnel-arrow">↓</div>
+        <div class="funnel-step" data-label="Conversation Started" data-n="141">
+          <span>Conversation Started</span><span class="n">141</span>
+        </div>
+        <div class="funnel-arrow">↓</div>
+        <div class="funnel-step" data-label="Lead Captured" data-n="34">
+          <span>Lead Captured</span><span class="n">34</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  @keyframes donut1{ to{ stroke-dasharray: 218.6 377; } }
+  @keyframes donut2{ to{ stroke-dasharray: 342.6 377; } }
+</style>
+
+<script>
+  // Count-up animation for big numbers
+  document.querySelectorAll('.stat-value[data-count]').forEach(el=>{
+    const target = parseInt(el.getAttribute('data-count'),10);
+    const suffix = el.getAttribute('data-suffix') || '';
+    let start = null;
+    const duration = 1100;
+    function step(ts){
+      if(!start) start = ts;
+      const progress = Math.min((ts-start)/duration, 1);
+      const eased = 1 - Math.pow(1-progress, 3);
+      el.textContent = Math.round(eased*target) + suffix;
+      if(progress < 1) requestAnimationFrame(step);
+    }
+    setTimeout(()=> requestAnimationFrame(step), 250);
+  });
+
+  // Bar width fill using data-w after mount (percent of container)
+  document.querySelectorAll('.bar-fill').forEach(el=>{
+    const w = el.getAttribute('data-w');
+    el.style.setProperty('--w', w + '%');
+  });
+  // inject dynamic keyframe per element via style width using CSS var trick
+  const styleTag = document.createElement('style');
+  let rules = '';
+  document.querySelectorAll('.bar-fill').forEach((el,i)=>{
+    const w = el.getAttribute('data-w');
+    rules += `@keyframes growBar${i}{from{width:0;}to{width:${w}%;}}`;
+    el.style.animationName = `growBar${i}`;
+  });
+  styleTag.textContent = rules;
+  document.head.appendChild(styleTag);
+
+  // Range dropdown toggle (visual only)
+  const rangeBtn = document.getElementById('rangeBtn');
+  rangeBtn.addEventListener('click', ()=>{
+    rangeBtn.classList.toggle('open');
+  });
+
+  // Bar row click -> subtle highlight pulse
+  document.querySelectorAll('.bar-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      row.style.transition = 'transform .15s ease';
+      row.style.transform = 'scale(0.98)';
+      setTimeout(()=> row.style.transform = 'scale(1)', 150);
+    });
+  });
+
+  // Funnel step click -> pulse
+  document.querySelectorAll('.funnel-step').forEach(step=>{
+    step.addEventListener('click', ()=>{
+      step.style.transition = 'transform .15s ease';
+      step.style.transform = 'scaleX(1) scale(0.97)';
+      setTimeout(()=> step.style.transform = 'scaleX(1) scale(1)', 150);
+    });
+  });
+
+  // Card click ripple-ish press already handled by CSS :active
+</script>
+
+</body>
+</html>
